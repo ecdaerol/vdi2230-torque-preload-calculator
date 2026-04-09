@@ -35,11 +35,13 @@ export function calculateTorque(
   screw: ScrewData,
   friction: FrictionPair
 ): number {
-  const Dkm = (screw.headDiameter + screw.holeDiameter) / 2;
+  const headFrictionTerm = screw.headDiameter > 0
+    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
+    : 0;
   const T = preload * (
     VDI_PITCH_FACTOR * screw.pitch +
     VDI_THREAD_FRICTION_FACTOR * screw.d2 * friction.muThread +
-    (Dkm / 2) * friction.muHead
+    headFrictionTerm
   );
   return T / 1000; // Convert N·mm to N·m
 }
@@ -52,10 +54,12 @@ export function calculatePreload(
   screw: ScrewData,
   friction: FrictionPair
 ): number {
-  const Dkm = (screw.headDiameter + screw.holeDiameter) / 2;
+  const headFrictionTerm = screw.headDiameter > 0
+    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
+    : 0;
   const factor = VDI_PITCH_FACTOR * screw.pitch +
     VDI_THREAD_FRICTION_FACTOR * screw.d2 * friction.muThread +
-    (Dkm / 2) * friction.muHead;
+    headFrictionTerm;
   return (torque * 1000) / factor; // torque in Nm → N·mm, result in N
 }
 

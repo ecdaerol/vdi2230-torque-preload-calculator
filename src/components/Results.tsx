@@ -110,16 +110,17 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
     js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name);
   }
 
-  // Torque range accounting for ±20% friction scatter (VDI 2230)
+  // Torque range using per-friction-pair scatter band (VDI 2230)
+  const scatter = friction.scatter ?? 0.20;
   const torqueMin = calculateTorque(preload, screw, {
     ...friction,
-    muThread: friction.muThread * 0.8,
-    muHead: friction.muHead * 0.8,
+    muThread: friction.muThread * (1 - scatter),
+    muHead: friction.muHead * (1 - scatter),
   });
   const torqueMax = calculateTorque(preload, screw, {
     ...friction,
-    muThread: friction.muThread * 1.2,
-    muHead: friction.muHead * 1.2,
+    muThread: friction.muThread * (1 + scatter),
+    muHead: friction.muHead * (1 + scatter),
   });
 
   const Nto = useImperial ? 0.2248 : 1;
@@ -143,7 +144,7 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
               {safeN(torque * Nmto, 3)} <span className="text-sm">{torqueUnit}</span>
             </div>
             <div className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>
-              Range: {safeN(torqueMin * Nmto, 3)} – {safeN(torqueMax * Nmto, 3)} {torqueUnit} (±20% friction scatter)
+              Range: {safeN(torqueMin * Nmto, 3)} – {safeN(torqueMax * Nmto, 3)} {torqueUnit} (±{Math.round(scatter * 100)}% friction scatter)
             </div>
           </div>
           <div>

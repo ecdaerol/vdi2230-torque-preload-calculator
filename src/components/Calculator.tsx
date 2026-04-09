@@ -9,7 +9,7 @@ import { MaterialData } from '../data/materials';
 import { FrictionPair, frictionDatabase } from '../data/friction';
 import { WasherData, washerDatabase } from '../data/washers';
 import { NutData, nutDatabase } from '../data/nuts';
-import { boltGrades, BoltGrade, calculateTorque } from '../calc/torque';
+import { boltGrades, BoltGrade, calculateTorque, calculatePreload } from '../calc/torque';
 
 const assemblyOptions: { value: AssemblyType; label: string; icon: string }[] = [
   {
@@ -41,6 +41,9 @@ export default function Calculator() {
   const [engagementLength, setEngagementLength] = useState(0);
   const [clampLength, setClampLength] = useState(0);
   const [useImperial, setUseImperial] = useState(false);
+  const [inputMode, setInputMode] = useState<'utilization' | 'torque' | 'preload'>('utilization');
+  const [torqueInput, setTorqueInput] = useState<number>(0);
+  const [preloadInput, setPreloadInput] = useState<number>(0);
 
   // --- New assembly state ---
   const [assemblyType, setAssemblyType] = useState<AssemblyType>('tapped-hole');
@@ -87,12 +90,20 @@ export default function Calculator() {
     }
   }, [engagementLength, clampLength, screw]);
 
-  // Compute preload and torque from utilization %
+  // Compute preload and torque based on input mode
   let preload = 0;
   let torque = 0;
-  if (screw && utilization > 0) {
-    preload = (utilization / 100) * grade.proofStress * screw.stressArea;
-    torque = calculateTorque(preload, screw, friction);
+  if (screw) {
+    if (inputMode === 'utilization' && utilization > 0) {
+      preload = (utilization / 100) * grade.proofStress * screw.stressArea;
+      torque = calculateTorque(preload, screw, friction);
+    } else if (inputMode === 'torque' && torqueInput > 0) {
+      torque = torqueInput;
+      preload = calculatePreload(torqueInput, screw, friction);
+    } else if (inputMode === 'preload' && preloadInput > 0) {
+      preload = preloadInput;
+      torque = calculateTorque(preloadInput, screw, friction);
+    }
   }
 
   // --- Shared CSS classes (axiom design) ---
@@ -148,35 +159,96 @@ export default function Calculator() {
             ))}
           </div>
 
-          {/* Bolt utilization input */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
-              Target Bolt Utilization [%]
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="10"
-                max="100"
-                step="1"
-                className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
-                style={{ accentColor: 'var(--brand)' }}
-                value={utilization}
-                onChange={(e) => setUtilization(parseInt(e.target.value))}
-              />
+          {/* Input mode selector */}
+          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: '#eeeeee' }}>
+            {(['utilization', 'torque', 'preload'] as const).map((m) => (
+              <button
+                key={m}
+                className="flex-1 px-2 py-1.5 rounded-[8px] text-xs font-semibold transition-colors"
+                style={
+                  inputMode === m
+                    ? { background: 'var(--panel)', color: 'var(--ink)', boxShadow: '0 1px 3px var(--shadow)' }
+                    : { color: 'var(--muted)' }
+                }
+                onClick={() => setInputMode(m)}
+              >
+                {m === 'utilization' ? 'Utilization %' : m === 'torque' ? 'Torque → F' : 'Force → T'}
+              </button>
+            ))}
+          </div>
+
+          {/* Conditional input based on mode */}
+          {inputMode === 'utilization' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+                Target Axial Utilization [%]
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="1"
+                  className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{ accentColor: 'var(--brand)' }}
+                  value={utilization}
+                  onChange={(e) => setUtilization(parseInt(e.target.value))}
+                />
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  step="1"
+                  className="w-20 px-3 py-2 text-lg font-mono text-center bg-white border rounded-[10px] focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: utilization > 100 ? 'var(--danger)' : 'var(--line)',
+                    '--tw-ring-color': 'var(--brand)'
+                  } as React.CSSProperties}
+                  value={utilization}
+                  onChange={(e) => setUtilization(Math.max(0, parseFloat(e.target.value) || 0))}
+                />
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Axial preload as % of proof load. Von Mises stress (incl. torsion) will be ~10-20% higher.</p>
+            </div>
+          )}
+
+          {inputMode === 'torque' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+                Tightening Torque [{useImperial ? 'lb·ft' : 'N·m'}]
+              </label>
               <input
                 type="number"
-                min="1"
-                max="120"
-                step="1"
-                className="w-20 px-3 py-2 text-lg font-mono text-center bg-white border rounded-[10px] focus:outline-none focus:ring-2"
-                style={{ borderColor: 'var(--line)', '--tw-ring-color': 'var(--brand)' } as React.CSSProperties}
-                value={utilization}
-                onChange={(e) => setUtilization(Math.max(0, parseFloat(e.target.value) || 0))}
+                min="0"
+                step="0.1"
+                className={inputClass}
+                style={selectStyle}
+                value={torqueInput || ''}
+                onChange={(e) => setTorqueInput(parseFloat(e.target.value) || 0)}
+                placeholder={useImperial ? 'e.g. 25 lb·ft' : 'e.g. 30 N·m'}
               />
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Enter applied torque; preload will be calculated.</p>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Recommended: 60–90%. Values above 100% exceed bolt proof load.</p>
-          </div>
+          )}
+
+          {inputMode === 'preload' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+                Target Preload [{useImperial ? 'lbf' : 'N'}]
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className={inputClass}
+                style={selectStyle}
+                value={preloadInput || ''}
+                onChange={(e) => setPreloadInput(parseFloat(e.target.value) || 0)}
+                placeholder={useImperial ? 'e.g. 5000 lbf' : 'e.g. 25000 N'}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Enter desired preload; torque will be calculated.</p>
+            </div>
+          )}
 
           {/* Screw selector */}
           <div className="mb-4">
@@ -329,12 +401,12 @@ export default function Calculator() {
               <input
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 max="1"
                 className={smallInputClass}
                 style={selectStyle}
                 value={friction.muThread}
-                onChange={(e) => setCustomFriction({ ...friction, muThread: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setCustomFriction({ ...friction, muThread: Math.max(0.01, parseFloat(e.target.value) || 0.01) })}
               />
             </div>
             <div>
@@ -342,12 +414,12 @@ export default function Calculator() {
               <input
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 max="1"
                 className={smallInputClass}
                 style={selectStyle}
                 value={friction.muHead}
-                onChange={(e) => setCustomFriction({ ...friction, muHead: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setCustomFriction({ ...friction, muHead: Math.max(0.01, parseFloat(e.target.value) || 0.01) })}
               />
             </div>
           </div>
@@ -359,7 +431,7 @@ export default function Calculator() {
               <input
                 type="number"
                 step="0.1"
-                min="0"
+                min="0.5"
                 className={inputClass}
                 style={selectStyle}
                 value={engagementLength || ''}
@@ -372,7 +444,7 @@ export default function Calculator() {
               <input
                 type="number"
                 step="0.1"
-                min="0"
+                min="1"
                 className={inputClass}
                 style={selectStyle}
                 value={clampLength || ''}

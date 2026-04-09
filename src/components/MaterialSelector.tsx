@@ -13,6 +13,7 @@ export default function MaterialSelector({ value, onChange }: Props) {
     category: 'custom',
     elasticModulus: 10,
     yieldStrength: 100,
+    compressiveYield: 120,
     shearStrength: 60,
     poissonRatio: 0.35,
     notes: 'User-defined',
@@ -62,7 +63,8 @@ export default function MaterialSelector({ value, onChange }: Props) {
         <div className="mt-2 grid grid-cols-2 gap-2">
           {([
             ['elasticModulus', 'E [GPa]'],
-            ['yieldStrength', 'σy [MPa]'],
+            ['yieldStrength', 'σy tens [MPa]'],
+            ['compressiveYield', 'σy comp [MPa]'],
             ['shearStrength', 'τ [MPa]'],
             ['poissonRatio', 'ν'],
           ] as const).map(([key, label]) => (
