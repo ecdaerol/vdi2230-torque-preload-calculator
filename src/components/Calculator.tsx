@@ -124,9 +124,9 @@ export default function Calculator() {
     `${n.standard} ${n.type} \u2014 AF ${n.width.toFixed(1)} \u00D7 H ${n.height.toFixed(1)}mm`;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left: Inputs */}
-      <div className="space-y-4">
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Sidebar: fixed 420px on desktop, full width on mobile */}
+      <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-4">
         <div className="card p-6">
           <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--ink)' }}>Input Parameters</h3>
 
@@ -411,8 +411,8 @@ export default function Calculator() {
         </div>
       </div>
 
-      {/* Right: Results + Diagrams */}
-      <div className="space-y-4">
+      {/* Main: scrollable results area */}
+      <div className="flex-1 min-w-0 space-y-4">
         <Results
           utilization={utilization}
           preload={preload}

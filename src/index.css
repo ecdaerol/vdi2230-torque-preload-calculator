@@ -34,3 +34,56 @@
   border-radius: 12px;
   box-shadow: 0 1px 3px var(--shadow);
 }
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+    break-inside: avoid;
+    margin-bottom: 8pt;
+  }
+
+  /* Single column */
+  .lg\:flex-row {
+    flex-direction: column !important;
+  }
+  .lg\:w-\[420px\] {
+    width: 100% !important;
+  }
+
+  /* Hide interactive elements */
+  input[type="range"],
+  button {
+    display: none !important;
+  }
+
+  /* Keep number inputs visible but styled for print */
+  input[type="number"],
+  select {
+    border: 1px solid #cccccc !important;
+    background: #ffffff !important;
+    -webkit-appearance: none;
+  }
+
+  /* SVG diagrams */
+  svg {
+    max-width: 100% !important;
+    break-inside: avoid;
+  }
+
+  /* Footer */
+  footer::after {
+    content: "Printed from VDI 2230 Torque & Preload Calculator";
+    display: block;
+    text-align: center;
+    font-size: 8pt;
+    color: #999999;
+    margin-top: 4pt;
+  }
+}
