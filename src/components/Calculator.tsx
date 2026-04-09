@@ -9,30 +9,29 @@ import { MaterialData } from '../data/materials';
 import { FrictionPair, frictionDatabase } from '../data/friction';
 import { WasherData, washerDatabase } from '../data/washers';
 import { NutData, nutDatabase } from '../data/nuts';
-import { boltGrades, BoltGrade, calculatePreload, calculateTorque } from '../calc/torque';
+import { boltGrades, BoltGrade, calculateTorque } from '../calc/torque';
 
 const assemblyOptions: { value: AssemblyType; label: string; icon: string }[] = [
   {
     value: 'tapped-hole',
     label: 'Into Tapped Hole',
-    icon: '\u2193\u25A0', // arrow into block
+    icon: '\u2193\u25A0',
   },
   {
     value: 'through-nut',
     label: 'Through + Nut',
-    icon: '\u2195\u2B21', // bolt through with nut
+    icon: '\u2195\u2B21',
   },
   {
     value: 'standoff',
     label: 'Through Standoff',
-    icon: '\u2195\u25AF', // bolt through spacer
+    icon: '\u2195\u25AF',
   },
 ];
 
 export default function Calculator() {
   // --- Core state ---
-  const [mode, setMode] = useState<'torque-to-preload' | 'preload-to-torque'>('torque-to-preload');
-  const [inputValue, setInputValue] = useState<number>(0);
+  const [utilization, setUtilization] = useState<number>(70);
   const [screw, setScrew] = useState<ScrewData | null>(null);
   const [clampedMaterial, setClampedMaterial] = useState<MaterialData | null>(null);
   const [tappedMaterial, setTappedMaterial] = useState<MaterialData | null>(null);
@@ -45,7 +44,7 @@ export default function Calculator() {
 
   // --- New assembly state ---
   const [assemblyType, setAssemblyType] = useState<AssemblyType>('tapped-hole');
-  const [headWasherIdx, setHeadWasherIdx] = useState<number>(-1); // -1 = none
+  const [headWasherIdx, setHeadWasherIdx] = useState<number>(-1);
   const [nutWasherIdx, setNutWasherIdx] = useState<number>(-1);
   const [nutIdx, setNutIdx] = useState<number>(0);
   const [standoffLength, setStandoffLength] = useState(0);
@@ -81,7 +80,6 @@ export default function Calculator() {
     if (clampLength === 0 || clampLength === (screw?.d ?? 0) * 2) {
       setClampLength(parseFloat((s.d * 2).toFixed(1)));
     }
-    // Reset washer/nut selections when screw size changes
     if (s.size !== screw?.size) {
       setHeadWasherIdx(-1);
       setNutWasherIdx(-1);
@@ -89,23 +87,33 @@ export default function Calculator() {
     }
   }, [engagementLength, clampLength, screw]);
 
-  // Compute preload for the diagram
+  // Compute preload and torque from utilization %
   let preload = 0;
-  if (screw && inputValue > 0) {
-    if (mode === 'torque-to-preload') {
-      preload = calculatePreload(inputValue, screw, friction);
-    } else {
-      preload = inputValue;
-    }
+  let torque = 0;
+  if (screw && utilization > 0) {
+    preload = (utilization / 100) * grade.proofStress * screw.stressArea;
+    torque = calculateTorque(preload, screw, friction);
   }
 
-  // --- Shared CSS classes ---
+  // --- Shared CSS classes (axiom design) ---
   const selectClass =
-    'w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+    'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2' +
+    ' bg-white' +
+    ' border' +
+    ' rounded-[10px]';
+  const selectStyle: React.CSSProperties = {
+    borderColor: 'var(--line)',
+    // focus ring handled by Tailwind focus:ring
+  };
+
   const inputClass =
-    'w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500';
+    'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2' +
+    ' bg-white' +
+    ' border' +
+    ' rounded-[10px]';
+
   const smallInputClass =
-    'w-full rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-sm font-mono';
+    'w-full px-2 py-1 text-sm font-mono bg-white border rounded-[10px]';
 
   // Format a washer option label
   const formatWasher = (w: WasherData): string =>
@@ -119,19 +127,20 @@ export default function Calculator() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Inputs */}
       <div className="space-y-4">
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Input Parameters</h3>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--ink)' }}>Input Parameters</h3>
 
           {/* Assembly type toggle */}
-          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-700 p-1 mb-4">
+          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: '#eeeeee' }}>
             {assemblyOptions.map((opt) => (
               <button
                 key={opt.value}
-                className={`flex-1 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                className="flex-1 px-2 py-2 rounded-[8px] text-sm font-medium transition-colors"
+                style={
                   assemblyType === opt.value
-                    ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
+                    ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff', boxShadow: '0 1px 3px var(--shadow)' }
+                    : { color: 'var(--muted)' }
+                }
                 onClick={() => setAssemblyType(opt.value)}
               >
                 <span className="mr-1">{opt.icon}</span> {opt.label}
@@ -139,46 +148,34 @@ export default function Calculator() {
             ))}
           </div>
 
-          {/* Mode toggle */}
-          <div className="flex rounded-lg bg-slate-100 dark:bg-slate-700 p-1 mb-4">
-            <button
-              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === 'torque-to-preload'
-                  ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-              onClick={() => { setMode('torque-to-preload'); setInputValue(0); }}
-            >
-              Torque &rarr; Preload
-            </button>
-            <button
-              className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                mode === 'preload-to-torque'
-                  ? 'bg-white dark:bg-slate-600 shadow text-blue-600 dark:text-blue-400'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-              onClick={() => { setMode('preload-to-torque'); setInputValue(0); }}
-            >
-              Preload &rarr; Torque
-            </button>
-          </div>
-
-          {/* Input value */}
+          {/* Bolt utilization input */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-              {mode === 'torque-to-preload'
-                ? `Tightening Torque [${useImperial ? 'lb\u00B7ft' : 'N\u00B7m'}]`
-                : `Target Preload [${useImperial ? 'lbf' : 'N'}]`}
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+              Target Bolt Utilization [%]
             </label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-lg font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={inputValue || ''}
-              onChange={(e) => setInputValue(parseFloat(e.target.value) || 0)}
-              placeholder={mode === 'torque-to-preload' ? 'e.g. 2.5' : 'e.g. 5000'}
-            />
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="10"
+                max="100"
+                step="1"
+                className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
+                style={{ accentColor: 'var(--brand)' }}
+                value={utilization}
+                onChange={(e) => setUtilization(parseInt(e.target.value))}
+              />
+              <input
+                type="number"
+                min="1"
+                max="120"
+                step="1"
+                className="w-20 px-3 py-2 text-lg font-mono text-center bg-white border rounded-[10px] focus:outline-none focus:ring-2"
+                style={{ borderColor: 'var(--line)', '--tw-ring-color': 'var(--brand)' } as React.CSSProperties}
+                value={utilization}
+                onChange={(e) => setUtilization(Math.max(0, parseFloat(e.target.value) || 0))}
+              />
+            </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Recommended: 60–90%. Values above 100% exceed bolt proof load.</p>
           </div>
 
           {/* Screw selector */}
@@ -188,11 +185,12 @@ export default function Calculator() {
 
           {/* Washer under head */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
               Washer Under Head
             </label>
             <select
               className={selectClass}
+              style={selectStyle}
               value={headWasherIdx}
               onChange={(e) => setHeadWasherIdx(parseInt(e.target.value))}
             >
@@ -208,19 +206,19 @@ export default function Calculator() {
           {/* Clamped material */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full bg-blue-400"></div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--brand)' }}></div>
+              <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
                 Clamped Part (through-hole)
               </label>
             </div>
             <MaterialSelector value={clampedMaterial} onChange={setClampedMaterial} />
           </div>
 
-          {/* Tapped / Bottom material — always shown, label varies */}
+          {/* Tapped / Bottom material */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--warn)' }}></div>
+              <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
                 {assemblyType === 'through-nut'
                   ? 'Bottom Part (through-hole)'
                   : 'Tapped Part (threaded)'}
@@ -232,11 +230,12 @@ export default function Calculator() {
           {/* Nut selector — only for through-nut */}
           {assemblyType === 'through-nut' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Nut
               </label>
               <select
                 className={selectClass}
+                style={selectStyle}
                 value={nutIdx}
                 onChange={(e) => setNutIdx(parseInt(e.target.value))}
               >
@@ -255,11 +254,12 @@ export default function Calculator() {
           {/* Washer under nut — only for through-nut */}
           {assemblyType === 'through-nut' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Washer Under Nut
               </label>
               <select
                 className={selectClass}
+                style={selectStyle}
                 value={nutWasherIdx}
                 onChange={(e) => setNutWasherIdx(parseInt(e.target.value))}
               >
@@ -276,7 +276,7 @@ export default function Calculator() {
           {/* Standoff length — only for standoff */}
           {assemblyType === 'standoff' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Standoff Length [mm]
               </label>
               <input
@@ -284,6 +284,7 @@ export default function Calculator() {
                 step="0.1"
                 min="0"
                 className={inputClass}
+                style={selectStyle}
                 value={standoffLength || ''}
                 onChange={(e) => setStandoffLength(parseFloat(e.target.value) || 0)}
                 placeholder="e.g. 10"
@@ -293,9 +294,10 @@ export default function Calculator() {
 
           {/* Bolt grade */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bolt Grade</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Bolt Grade</label>
             <select
               className={selectClass}
+              style={selectStyle}
               value={gradeIdx}
               onChange={(e) => setGradeIdx(parseInt(e.target.value))}
             >
@@ -307,9 +309,10 @@ export default function Calculator() {
 
           {/* Friction pair */}
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Friction Pair</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Friction Pair</label>
             <select
               className={selectClass}
+              style={selectStyle}
               value={frictionIdx}
               onChange={(e) => { setFrictionIdx(parseInt(e.target.value)); setCustomFriction(null); }}
             >
@@ -322,25 +325,27 @@ export default function Calculator() {
           {/* Manual friction override */}
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">&mu;_thread (override)</label>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>&mu;_thread (override)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 max="1"
                 className={smallInputClass}
+                style={selectStyle}
                 value={friction.muThread}
                 onChange={(e) => setCustomFriction({ ...friction, muThread: parseFloat(e.target.value) || 0 })}
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">&mu;_head (override)</label>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>&mu;_head (override)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 max="1"
                 className={smallInputClass}
+                style={selectStyle}
                 value={friction.muHead}
                 onChange={(e) => setCustomFriction({ ...friction, muHead: parseFloat(e.target.value) || 0 })}
               />
@@ -350,42 +355,54 @@ export default function Calculator() {
           {/* Engagement length & clamp length */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Thread Engagement [mm]</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Thread Engagement [mm]</label>
               <input
                 type="number"
                 step="0.1"
                 min="0"
                 className={inputClass}
+                style={selectStyle}
                 value={engagementLength || ''}
                 onChange={(e) => setEngagementLength(parseFloat(e.target.value) || 0)}
               />
-              <span className="text-xs text-slate-400">Default: 1.5 &times; d</span>
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>Default: 1.5 &times; d</span>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Clamp Length [mm]</label>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Clamp Length [mm]</label>
               <input
                 type="number"
                 step="0.1"
                 min="0"
                 className={inputClass}
+                style={selectStyle}
                 value={clampLength || ''}
                 onChange={(e) => setClampLength(parseFloat(e.target.value) || 0)}
               />
-              <span className="text-xs text-slate-400">Default: 2 &times; d</span>
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>Default: 2 &times; d</span>
             </div>
           </div>
 
           {/* Unit toggle */}
           <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-600 dark:text-slate-400">Units:</label>
+            <label className="text-sm" style={{ color: 'var(--muted)' }}>Units:</label>
             <button
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${!useImperial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}
+              className="px-3 py-1 rounded-[10px] text-sm font-medium transition-colors"
+              style={
+                !useImperial
+                  ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff' }
+                  : { color: 'var(--muted)' }
+              }
               onClick={() => setUseImperial(false)}
             >
               Metric (N, N&middot;m)
             </button>
             <button
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${useImperial ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}
+              className="px-3 py-1 rounded-[10px] text-sm font-medium transition-colors"
+              style={
+                useImperial
+                  ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff' }
+                  : { color: 'var(--muted)' }
+              }
               onClick={() => setUseImperial(true)}
             >
               Imperial (lbf, lb&middot;ft)
@@ -397,8 +414,9 @@ export default function Calculator() {
       {/* Right: Results + Diagrams */}
       <div className="space-y-4">
         <Results
-          mode={mode}
-          inputValue={inputValue}
+          utilization={utilization}
+          preload={preload}
+          torque={torque}
           screw={screw}
           clampedMaterial={clampedMaterial}
           tappedMaterial={tappedMaterial}

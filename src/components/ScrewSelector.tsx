@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { ScrewData, screwDatabase } from '../data/screws';
 
 interface Props {
@@ -6,14 +7,42 @@ interface Props {
 }
 
 export default function ScrewSelector({ value, onChange }: Props) {
-  const grouped = screwDatabase.reduce((acc, s) => {
-    const key = `${s.standard} — ${s.type}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(s);
-    return acc;
-  }, {} as Record<string, ScrewData[]>);
+  // Get unique standards (with type description)
+  const standards = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of screwDatabase) {
+      if (!seen.has(s.standard)) {
+        seen.set(s.standard, s.type);
+      }
+    }
+    return Array.from(seen.entries()).map(([standard, type]) => ({ standard, type }));
+  }, []);
 
-  const formatOption = (s: ScrewData) => {
+  const [selectedStandard, setSelectedStandard] = useState<string>(value?.standard ?? '');
+
+  // Sizes available for the selected standard
+  const availableSizes = useMemo(() => {
+    if (!selectedStandard) return [];
+    return screwDatabase.filter(s => s.standard === selectedStandard);
+  }, [selectedStandard]);
+
+  const handleStandardChange = (std: string) => {
+    setSelectedStandard(std);
+    // Auto-select first size of the new standard
+    const first = screwDatabase.find(s => s.standard === std);
+    if (first) onChange(first);
+  };
+
+  const handleSizeChange = (size: string) => {
+    const screw = screwDatabase.find(s => s.standard === selectedStandard && s.size === size);
+    if (screw) onChange(screw);
+  };
+
+  const selectClass =
+    'w-full px-3 py-2 text-sm bg-white border rounded-[10px] focus:outline-none focus:ring-2';
+  const selectStyle: React.CSSProperties = { borderColor: 'var(--line)' };
+
+  const formatSizeOption = (s: ScrewData) => {
     const drive = s.driveType === 'Torx' ? s.driveSize : `Hex ${s.driveSize}mm`;
     if (!s.hasHead) return `${s.size} × ${s.pitch} — ${drive}`;
     if (s.shoulderDiameter) return `${s.size} × ${s.pitch} — ${drive} (⌀${s.shoulderDiameter} shoulder)`;
@@ -22,31 +51,46 @@ export default function ScrewSelector({ value, onChange }: Props) {
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-        Screw
+      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+        Screw Standard
       </label>
       <select
-        className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={value ? `${value.standard}|${value.size}` : ''}
-        onChange={(e) => {
-          const [std, size] = e.target.value.split('|');
-          const screw = screwDatabase.find(s => s.standard === std && s.size === size);
-          if (screw) onChange(screw);
-        }}
+        className={selectClass}
+        style={selectStyle}
+        value={selectedStandard}
+        onChange={(e) => handleStandardChange(e.target.value)}
       >
-        <option value="">Select a screw...</option>
-        {Object.entries(grouped).map(([group, screws]) => (
-          <optgroup key={group} label={group}>
-            {screws.map(s => (
-              <option key={`${s.standard}|${s.size}`} value={`${s.standard}|${s.size}`}>
-                {formatOption(s)}
-              </option>
-            ))}
-          </optgroup>
+        <option value="">Select a standard...</option>
+        {standards.map(({ standard, type }) => (
+          <option key={standard} value={standard}>
+            {standard} — {type}
+          </option>
         ))}
       </select>
+
+      {selectedStandard && (
+        <div className="mt-3">
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+            Screw Size
+          </label>
+          <select
+            className={selectClass}
+            style={selectStyle}
+            value={value?.standard === selectedStandard ? value.size : ''}
+            onChange={(e) => handleSizeChange(e.target.value)}
+          >
+            <option value="">Select a size...</option>
+            {availableSizes.map(s => (
+              <option key={s.size} value={s.size}>
+                {formatSizeOption(s)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {value && (
-        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 grid grid-cols-2 gap-x-4 gap-y-1">
+        <div className="mt-2 text-xs grid grid-cols-2 gap-x-4 gap-y-1" style={{ color: 'var(--muted)' }}>
           <span>Pitch: {value.pitch} mm</span>
           <span>Stress area: {value.stressArea} mm²</span>
           <span>Pitch ⌀: {value.d2} mm</span>
@@ -56,8 +100,8 @@ export default function ScrewSelector({ value, onChange }: Props) {
           {value.hasHead && <span>Head ⌀: {value.headDiameter} mm</span>}
           {value.hasHead && <span>Head height: {value.headHeight} mm</span>}
           {value.shoulderDiameter && <span>Shoulder ⌀: {value.shoulderDiameter} mm</span>}
-          {value.isCountersunk && <span className="text-amber-600 dark:text-amber-400">Countersunk</span>}
-          {!value.hasHead && <span className="text-amber-600 dark:text-amber-400">Set screw (no head)</span>}
+          {value.isCountersunk && <span style={{ color: 'var(--warn)' }}>Countersunk</span>}
+          {!value.hasHead && <span style={{ color: 'var(--warn)' }}>Set screw (no head)</span>}
         </div>
       )}
     </div>
