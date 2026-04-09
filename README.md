@@ -39,7 +39,7 @@ No install required. Runs entirely in the browser — no data leaves your machin
 The core calculation follows the VDI 2230 simplified method:
 
 ```
-T = F_V × (0.16·p + 0.58·d₂·μ_th + D_km/2·μ_h)
+T = F_V × (0.16·p + 0.58·d₂·μₜₕ + D_km/2·μₕ)
 ```
 
 Where:
@@ -49,9 +49,9 @@ Where:
 | `F_V` | Bolt preload force [N] |
 | `p` | Thread pitch [mm] |
 | `d₂` | Pitch diameter [mm] |
-| `μ_th` | Thread friction coefficient |
+| `μₜₕ` | Thread friction coefficient |
 | `D_km` | Mean bearing diameter = (d_w + d_h) / 2 [mm] |
-| `μ_h` | Head (or nut) bearing friction coefficient |
+| `μₕ` | Head (or nut) bearing friction coefficient |
 
 The formula is also inverted: given a torque, the calculator solves for preload.
 
@@ -261,9 +261,9 @@ A **custom material** option allows entering arbitrary E, σy, τ, and ν values
 
 ## Friction Pairs
 
-18 pre-defined friction pairs covering steel, stainless, and polymer contact surfaces. Each pair specifies independent thread friction (μ_th) and head bearing friction (μ_h).
+18 pre-defined friction pairs covering steel, stainless, and polymer contact surfaces. Each pair specifies independent thread friction (μₜₕ) and head bearing friction (μₕ).
 
-| Pair | Condition | μ_thread | μ_head |
+| Pair | Condition | μₜₕread | μₕead |
 |------|-----------|----------|--------|
 | Steel on Steel | Dry | 0.12 | 0.12 |
 | Steel on Steel | Oiled | 0.10 | 0.10 |
@@ -284,7 +284,7 @@ A **custom material** option allows entering arbitrary E, σy, τ, and ν values
 | Any | Loctite 243 (medium) | 0.14 | 0.14 |
 | Custom | User-defined | 0.14 | 0.14 |
 
-Both μ_thread and μ_head can be overridden manually with arbitrary values regardless of the selected pair.
+Both μₜₕread and μₕead can be overridden manually with arbitrary values regardless of the selected pair.
 
 ---
 
@@ -295,12 +295,12 @@ Both μ_thread and μ_head can be overridden manually with arbitrary values rega
 The torque required to achieve a target preload F_V accounts for three resistance terms:
 
 ```
-T = F_V × (0.16·p + 0.58·d₂·μ_th + D_km/2·μ_h)
+T = F_V × (0.16·p + 0.58·d₂·μₜₕ + D_km/2·μₕ)
 ```
 
 - **0.16·p** — torque to overcome thread helix (pitch-dependent axial advance)
-- **0.58·d₂·μ_th** — torque to overcome thread friction at the pitch diameter
-- **D_km/2·μ_h** — torque to overcome under-head (or under-nut) bearing friction
+- **0.58·d₂·μₜₕ** — torque to overcome thread friction at the pitch diameter
+- **D_km/2·μₕ** — torque to overcome under-head (or under-nut) bearing friction
 
 The constant 0.16 approximates `tan(λ)/(2π)` for standard metric coarse threads, and 0.58 approximates `1/(2·cos(30°))` for the 60° thread flank angle. D_km = (d_w + d_h) / 2 is the mean bearing diameter.
 
@@ -520,6 +520,28 @@ Contributions are welcome. To add a screw standard, material, or friction pair:
 4. Submit a pull request with a description of the data source
 
 For calculation changes, please reference the relevant section of VDI 2230 or provide an equivalent engineering reference.
+
+---
+
+## macOS Desktop App Packaging
+
+For local desktop delivery on macOS, package the calculator as a **single self-contained `.app` bundle** with:
+
+- the provided branded icon
+- a **Swiss-flag red** icon background
+- embedded `dist/` assets inside the app bundle (no separate companion folder on the Desktop)
+
+Build it after `npm run build` with:
+
+```bash
+./scripts/build-macos-app.sh
+```
+
+This produces:
+- a Desktop `.app` bundle for local use
+- a single `.zip` file for easy sharing inside the company
+
+The app serves the embedded static build locally and opens it in the browser, avoiding the blank page issue that occurs when the Vite build is opened directly from `file://`.
 
 ---
 

@@ -45,8 +45,8 @@ export default function ScrewSelector({ value, onChange }: Props) {
   const formatSizeOption = (s: ScrewData) => {
     const drive = s.driveType === 'Torx' ? s.driveSize : `Hex ${s.driveSize}mm`;
     if (!s.hasHead) return `${s.size} × ${s.pitch} — ${drive}`;
-    if (s.shoulderDiameter) return `${s.size} × ${s.pitch} — ${drive} (⌀${s.shoulderDiameter} shoulder)`;
-    return `${s.size} × ${s.pitch} — ${drive} (⌀${s.headDiameter} head)`;
+    if (s.shoulderDiameter) return `${s.size} × ${s.pitch} — ${drive} (Ø${s.shoulderDiameter} shoulder)`;
+    return `${s.size} × ${s.pitch} — ${drive} (Ø${s.headDiameter} head)`;
   };
 
   return (
@@ -93,13 +93,13 @@ export default function ScrewSelector({ value, onChange }: Props) {
         <div className="mt-2 text-xs grid grid-cols-2 gap-x-4 gap-y-1" style={{ color: 'var(--muted)' }}>
           <span>Pitch: {value.pitch} mm</span>
           <span>Stress area: {value.stressArea} mm²</span>
-          <span>Pitch ⌀: {value.d2} mm</span>
+          <span>Pitch Ø: {value.d2} mm</span>
           <span>Drive: {value.driveType} {value.driveSize}{value.driveType === 'Hex socket' ? ' mm' : ''}</span>
-          <span>Minor ⌀: {value.d3} mm</span>
+          <span>Minor Ø: {value.d3} mm</span>
           <span>Clearance hole: {value.holeDiameter} mm</span>
-          {value.hasHead && <span>Head ⌀: {value.headDiameter} mm</span>}
+          {value.hasHead && <span>Head Ø: {value.headDiameter} mm</span>}
           {value.hasHead && <span>Head height: {value.headHeight} mm</span>}
-          {value.shoulderDiameter && <span>Shoulder ⌀: {value.shoulderDiameter} mm</span>}
+          {value.shoulderDiameter && <span>Shoulder Ø: {value.shoulderDiameter} mm</span>}
           {value.isCountersunk && <span style={{ color: 'var(--warn)' }}>Countersunk</span>}
           {!value.hasHead && <span style={{ color: 'var(--warn)' }}>Set screw (no head)</span>}
         </div>

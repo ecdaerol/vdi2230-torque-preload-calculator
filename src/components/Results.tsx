@@ -11,6 +11,7 @@ import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadS
 import { calculateJointStiffness, JointStiffnessResult } from '../calc/jointStiffness';
 
 interface Props {
+  inputMode: 'utilization' | 'torque' | 'preload';
   utilization: number;
   preload: number;
   torque: number;
@@ -21,11 +22,14 @@ interface Props {
   grade: BoltGrade;
   engagementLength: number;
   clampLength: number;
+  clampLengthSplit: number;
   useImperial: boolean;
   assemblyType: AssemblyType;
   headWasher: WasherData | null;
   nutWasher: WasherData | null;
   nut: NutData | null;
+  bearingOD?: number;
+  bearingID?: number;
 }
 
 function safe(n: number): string {
@@ -56,8 +60,8 @@ function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' })
   );
 }
 
-export default function Results({ utilization, preload, torque, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial, assemblyType, headWasher, nutWasher, nut }: Props) {
-  if (!screw || utilization <= 0) {
+export default function Results({ inputMode, utilization, preload, torque, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, clampLengthSplit, useImperial, assemblyType, headWasher, nutWasher, nut, bearingOD, bearingID }: Props) {
+  if (!screw) {
     return (
       <div className="card p-5">
         <p className="text-center" style={{ color: 'var(--muted)' }}>Select a screw and enter a value to see results.</p>
@@ -67,10 +71,27 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
 
   // --- Validation: preload must be positive ---
   if (preload <= 0) {
+    const emptyStateMessage = inputMode === 'utilization'
+      ? 'Set torque percentage above 0%'
+      : inputMode === 'torque'
+        ? 'Enter a tightening torque above 0'
+        : 'Enter a preload above 0';
+
     return (
       <div className="card p-5">
         <p className="text-center text-sm font-medium" style={{ color: 'var(--danger)' }}>
-          Set utilization above 0%
+          {emptyStateMessage}
+        </p>
+      </div>
+    );
+  }
+
+  // --- NaN/Infinity guard ---
+  if (!isFinite(preload) || isNaN(preload) || !isFinite(torque) || isNaN(torque)) {
+    return (
+      <div className="card p-5">
+        <p className="text-center text-sm font-medium" style={{ color: 'var(--danger)' }}>
+          Invalid input: preload or torque is not a finite number.
         </p>
       </div>
     );
@@ -82,12 +103,12 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
     : null;
 
   // --- Surface pressure (head side) ---
-  const hasSurfacePressure = screw.hasHead && clampedMaterial;
+  const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
   let sp: SurfacePressureResult | null = null;
   if (hasSurfacePressure) {
-    const bearingOD = headWasher ? headWasher.outerDiameter : undefined;
-    const bearingID = headWasher ? headWasher.innerDiameter : undefined;
-    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, bearingOD, bearingID);
+    const headBearingOD = headWasher ? headWasher.outerDiameter : bearingOD;
+    const headBearingID = headWasher ? headWasher.innerDiameter : bearingID;
+    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, headBearingOD, headBearingID);
   }
 
   // --- Surface pressure (nut side) — only for through-nut ---
@@ -101,28 +122,27 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   // --- Thread stripping (skip gracefully if engagementLength <= 0) ---
   let ts: ThreadStrippingResult | null = null;
   if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
-    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength);
+    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade);
   }
 
   // --- Joint stiffness (skip gracefully if clampLength <= 0) ---
   let js: JointStiffnessResult | null = null;
   if (clampedMaterial && clampLength > 0) {
-    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name);
+    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
   }
 
   // Torque range using per-friction-pair scatter band (VDI 2230)
-  const effectiveBearingOD = headWasher ? headWasher.outerDiameter : undefined;
   const scatter = friction.scatter ?? 0.20;
   const torqueMin = calculateTorque(preload, screw, {
     ...friction,
     muThread: friction.muThread * (1 - scatter),
     muHead: friction.muHead * (1 - scatter),
-  }, effectiveBearingOD);
+  }, bearingOD, bearingID);
   const torqueMax = calculateTorque(preload, screw, {
     ...friction,
     muThread: friction.muThread * (1 + scatter),
     muHead: friction.muHead * (1 + scatter),
-  }, effectiveBearingOD);
+  }, bearingOD, bearingID);
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
@@ -133,8 +153,55 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   const safetyColor = (sf: number) =>
     sf < 1 ? 'var(--danger)' : sf < 1.5 ? 'var(--warn)' : 'var(--ok)';
 
+  // --- Validation warnings ---
+  const warnings: string[] = [];
+  if (boltStress && boltStress.utilization > 90) {
+    warnings.push('Bolt utilization exceeds 90% — consider reducing preload or upgrading grade.');
+  }
+  if (friction.muThread < 0.04 || friction.muHead < 0.04) {
+    warnings.push('Friction coefficient below 0.04 — results may be unreliable. Verify lubrication conditions.');
+  }
+  if (engagementLength > 0 && engagementLength < screw.pitch) {
+    warnings.push(`Thread engagement (${engagementLength.toFixed(1)} mm) is less than one pitch (${screw.pitch} mm) — stripping risk is very high.`);
+  }
+  if (clampLength > 0 && clampLength < 1) {
+    warnings.push('Clamp length is less than 1 mm — joint stiffness results may be inaccurate.');
+  }
+  if (clampLength > 0 && screw.d > 0 && clampLength > 10 * screw.d) {
+    warnings.push(`Clamp length (${clampLength} mm) is very long relative to bolt diameter (${screw.d} mm) — verify setup.`);
+  }
+
+  // --- Disclaimers for special configurations ---
+  const disclaimers: string[] = [];
+  if (!screw.hasHead) {
+    disclaimers.push('Set screw: no head bearing surface. Surface pressure and head torque terms are not applicable.');
+  }
+  if (screw.isCountersunk) {
+    disclaimers.push('Countersunk head: flat head-bearing pressure is not shown because the contact geometry is different from a standard bearing face.');
+  }
+
   return (
     <div className="space-y-4">
+      {/* Validation warnings */}
+      {warnings.length > 0 && (
+        <div className="card p-4" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Warnings</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Disclaimers */}
+      {disclaimers.length > 0 && (
+        <div className="card p-4" style={{ backgroundColor: '#f3f4f6', borderLeft: '4px solid #9ca3af' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#374151' }}>Notes</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#374151' }}>
+            {disclaimers.map((d, i) => <li key={i}>{d}</li>)}
+          </ul>
+        </div>
+      )}
+
       {/* Primary result */}
       <div className="card p-5">
         <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Results</h3>
@@ -225,7 +292,11 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
               </div>
             </div>
             <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
-              Rp0.2 = {grade.proofStress} MPa &middot; Target: {utilization}% (axial) &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)
+              {inputMode === 'utilization'
+                ? <>Rp₀.₂ = {grade.Rp02} MPa &middot; Selected torque level: {utilization}% &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>
+                : inputMode === 'torque'
+                  ? <>Rp₀.₂ = {grade.Rp02} MPa &middot; Derived from entered torque &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>
+                  : <>Rp₀.₂ = {grade.Rp02} MPa &middot; Derived from entered preload &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>}
             </div>
             {boltStress.utilization > 100 && (
               <div className="mt-2 text-xs font-semibold" style={{ color: 'var(--danger)' }}>
@@ -246,7 +317,11 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
         </div>
         {!hasSurfacePressure ? (
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
-            {!screw.hasHead ? 'N/A for set screws (no bearing surface)' : 'Select a clamped material to check surface pressure.'}
+            {!screw.hasHead
+              ? 'N/A for set screws (no bearing surface)'
+              : screw.isCountersunk
+                ? 'N/A for countersunk heads'
+                : 'Select a clamped material to check surface pressure.'}
           </p>
         ) : (
           <>
@@ -336,6 +411,12 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
                 <div className="text-sm font-mono font-semibold">{safe(ts.minEngagementLength)} mm</div>
               </div>
             </div>
+            <div className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
+              Critical mode: <span className="font-semibold">{ts.criticalMode === 'internal' ? 'Internal (nut/tapped material)' : 'External (bolt thread)'}</span>
+              {ts.externalStrippingForce !== Infinity && (
+                <> &middot; Internal: {safeN(ts.internalStrippingForce * Nto, 0)} {forceUnit} &middot; External: {safeN(ts.externalStrippingForce * Nto, 0)} {forceUnit}</>
+              )}
+            </div>
             {ts.status !== 'ok' && (
               <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
                 Increase engagement length to &ge; {safe(ts.minEngagementLength)} mm for SF &ge; 1.5
@@ -351,11 +432,11 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
           <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Joint Stiffness</h3>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Bolt k_b</div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Bolt stiffness</div>
               <div className="text-sm font-mono font-semibold">{safe(js.boltStiffness / 1000)} kN/mm</div>
             </div>
             <div>
-              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Clamp k_c</div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Clamp stiffness</div>
               <div className="text-sm font-mono font-semibold">{safe(js.clampStiffness / 1000)} kN/mm</div>
             </div>
             <div>
@@ -363,6 +444,11 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
               <div className="text-sm font-mono font-semibold">{safeN(js.loadFactor, 3)}</div>
             </div>
           </div>
+          {tappedMaterial && (
+            <div className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
+              Stiffness model: {clampedMaterial?.name ?? 'Top material'} {safe(clampLengthSplit)} mm + {tappedMaterial.name} {safe(Math.max(0, clampLength - clampLengthSplit))} mm
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -27,12 +27,13 @@ export const materialDatabase: MaterialData[] = [
   { name: "Aluminum 5083-H321", category: "metal", elasticModulus: 70, yieldStrength: 228, shearStrength: 145, compressiveYield: 228, poissonRatio: 0.33, notes: "Machined, marine grade" },
   { name: "Steel (generic)", category: "metal", elasticModulus: 210, yieldStrength: 250, shearStrength: 150, compressiveYield: 250, poissonRatio: 0.30, notes: "Mild steel reference" },
   { name: "Stainless 304 (1.4301)", category: "metal", elasticModulus: 193, yieldStrength: 215, shearStrength: 170, compressiveYield: 215, poissonRatio: 0.29, notes: "Austenitic stainless" },
-  { name: "Stainless 303 (1.4305)", category: "metal", elasticModulus: 193, yieldStrength: 240, shearStrength: 180, compressiveYield: 210, poissonRatio: 0.29, notes: "Free-machining stainless" },
+  { name: "Stainless 303 (1.4305)", category: "metal", elasticModulus: 193, yieldStrength: 240, shearStrength: 180, compressiveYield: 240, poissonRatio: 0.29, notes: "Free-machining stainless" },
   // Engineering polymers
   { name: "PEEK (unfilled)", category: "polymer", elasticModulus: 3.5, yieldStrength: 100, shearStrength: 55, compressiveYield: 130, poissonRatio: 0.40, notes: "Injection molded" },
   { name: "PEEK (30% CF)", category: "composite", elasticModulus: 12, yieldStrength: 210, shearStrength: 100, compressiveYield: 240, poissonRatio: 0.38, notes: "Carbon fiber filled" },
+  { name: "FR-4 PCB Laminate", category: "composite", elasticModulus: 22, yieldStrength: 320, shearStrength: 140, compressiveYield: 420, poissonRatio: 0.14, notes: "Glass-epoxy PCB laminate, for clamped boards" },
   { name: "POM (Delrin)", category: "polymer", elasticModulus: 2.9, yieldStrength: 65, shearStrength: 40, compressiveYield: 80, poissonRatio: 0.35, notes: "Acetal" },
-  { name: "PEI (Ultem)", category: "polymer", elasticModulus: 3.3, yieldStrength: 85, shearStrength: 50, compressiveYield: 170, poissonRatio: 0.36, notes: "High-temp polymer" },
+  { name: "PEI (Ultem)", category: "polymer", elasticModulus: 3.3, yieldStrength: 85, shearStrength: 50, compressiveYield: 152, poissonRatio: 0.36, notes: "Sabic Ultem 1000" },
   // 3D printed polymers
   { name: "PA12 (SLS/MJF)", category: "polymer", elasticModulus: 1.7, yieldStrength: 48, shearStrength: 28, compressiveYield: 58, poissonRatio: 0.39, notes: "3D printed — HP MJF / EOS SLS" },
   { name: "PA12 (FDM)", category: "polymer", elasticModulus: 1.2, yieldStrength: 35, shearStrength: 20, compressiveYield: 40, poissonRatio: 0.39, notes: "3D printed FDM — layer adhesion dependent" },

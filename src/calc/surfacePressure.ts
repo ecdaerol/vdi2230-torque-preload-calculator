@@ -22,9 +22,12 @@ export function calculateSurfacePressure(
 ): SurfacePressureResult {
   const od = bearingOD ?? screw.headDiameter;
   const id = bearingID ?? screw.holeDiameter;
+  const limit = material.compressiveYield;
+  if (od <= id) {
+    return { pressure: Infinity, limit, safetyFactor: 0, bearingArea: 0, status: 'danger' as const };
+  }
   const bearingArea = (Math.PI / 4) * (od * od - id * id);
   const pressure = preload / bearingArea;
-  const limit = material.compressiveYield;
   const safetyFactor = limit / pressure;
 
   let status: 'ok' | 'warning' | 'danger' = 'ok';
