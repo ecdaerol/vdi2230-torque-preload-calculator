@@ -22,6 +22,13 @@ export function calculateSurfacePressure(
 ): SurfacePressureResult {
   const od = bearingOD ?? screw.headDiameter;
   const id = bearingID ?? screw.holeDiameter;
+
+  // Guard: OD must exceed ID for a valid annular bearing area
+  if (od <= id) {
+    const limit = material.compressiveYield;
+    return { pressure: Infinity, limit, safetyFactor: 0, bearingArea: 0, status: 'danger' as const };
+  }
+
   const bearingArea = (Math.PI / 4) * (od * od - id * id);
   const pressure = preload / bearingArea;
   const limit = material.compressiveYield;

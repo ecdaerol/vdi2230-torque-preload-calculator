@@ -119,7 +119,11 @@ export default function Calculator() {
     bearingID = headWasher.innerDiameter;
   }
 
-  // Compute preload and torque based on input mode
+  // Compute preload and torque based on input mode.
+  // Imperial inputs must be converted to metric before calculation.
+  const NM_PER_LBFT = 1.355818;  // 1 lb·ft = 1.3558 N·m
+  const N_PER_LBF = 4.44822;     // 1 lbf = 4.4482 N
+
   let preload = 0;
   let torque = 0;
   if (screw) {
@@ -127,11 +131,13 @@ export default function Calculator() {
       preload = (utilization / 100) * grade.Rp02 * screw.stressArea;
       torque = calculateTorque(preload, screw, friction, bearingOD, bearingID);
     } else if (inputMode === 'torque' && torqueInput > 0) {
-      torque = torqueInput;
-      preload = calculatePreload(torqueInput, screw, friction, bearingOD, bearingID);
+      const torqueMetric = useImperial ? torqueInput * NM_PER_LBFT : torqueInput;
+      torque = torqueMetric;
+      preload = calculatePreload(torqueMetric, screw, friction, bearingOD, bearingID);
     } else if (inputMode === 'preload' && preloadInput > 0) {
-      preload = preloadInput;
-      torque = calculateTorque(preloadInput, screw, friction, bearingOD, bearingID);
+      const preloadMetric = useImperial ? preloadInput * N_PER_LBF : preloadInput;
+      preload = preloadMetric;
+      torque = calculateTorque(preloadMetric, screw, friction, bearingOD, bearingID);
     }
   }
 

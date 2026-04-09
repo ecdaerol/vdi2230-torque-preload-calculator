@@ -17,7 +17,7 @@ function getBoltEModulus(gradeName: string): number {
 
 /**
  * VDI 2230 §5.2.2 — single-layer cone model clamp stiffness.
- * k_c = E_c · π · d_w · tan(α) / ln( (D_A − d_h)(d_w + d_h) / ((D_A + d_h)(d_w − d_h)) )
+ * k_c = E_c · π · d_w · tan(α) / (2 · ln( (D_A − d_h)(d_w + d_h) / ((D_A + d_h)(d_w − d_h)) ))
  */
 function coneStiffness(
   Ec: number,   // MPa
@@ -32,7 +32,8 @@ function coneStiffness(
   const denominator = (DA + dh) * (dw - dh);
 
   if (denominator > 0 && numerator > denominator) {
-    return (Ec * dw * Math.PI * Math.tan(alpha)) / Math.log(numerator / denominator);
+    // VDI 2230:2015 §5.2.2 — factor of 2 in denominator for substitution cone
+    return (Ec * dw * Math.PI * Math.tan(alpha)) / (2 * Math.log(numerator / denominator));
   } else if (dw > dh && Ec > 0) {
     // Fallback: cylindrical model when cone geometry is degenerate
     return Ec * Math.PI * (dw * dw - dh * dh) / (4 * layerLength);

@@ -128,9 +128,9 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   const hasSurfacePressure = screw.hasHead && clampedMaterial;
   let sp: SurfacePressureResult | null = null;
   if (hasSurfacePressure) {
-    const bearingOD = headWasher ? headWasher.outerDiameter : undefined;
-    const bearingID = headWasher ? headWasher.innerDiameter : undefined;
-    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, bearingOD, bearingID);
+    const headBearingOD = headWasher ? headWasher.outerDiameter : undefined;
+    const headBearingID = headWasher ? headWasher.innerDiameter : undefined;
+    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, headBearingOD, headBearingID);
   }
 
   // --- Surface pressure (nut side) — only for through-nut ---
