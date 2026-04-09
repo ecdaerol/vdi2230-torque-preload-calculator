@@ -1,4 +1,5 @@
 import Calculator from './components/Calculator';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   return (
@@ -22,7 +23,9 @@ export default function App() {
 
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <Calculator />
+        <ErrorBoundary>
+          <Calculator />
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}

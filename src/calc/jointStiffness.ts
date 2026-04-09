@@ -8,16 +8,24 @@ export interface JointStiffnessResult {
   diagramData: { deformation: number; boltForce: number; clampForce: number }[];
 }
 
-const BOLT_E_MODULUS = 210000; // MPa (steel bolt assumed)
+function getBoltEModulus(gradeName: string): number {
+  // Stainless steel grades (austenitic)
+  if (gradeName.startsWith('A2') || gradeName.startsWith('A4')) {
+    return 193000; // MPa — austenitic stainless
+  }
+  // Carbon steel grades (8.8, 10.9, 12.9)
+  return 210000; // MPa — carbon/alloy steel
+}
 
 export function calculateJointStiffness(
   preload: number,
   screw: ScrewData,
   material: MaterialData,
-  clampLength: number
+  clampLength: number,
+  gradeName: string
 ): JointStiffnessResult {
   // Bolt stiffness: k_b = E_bolt × A_s / L_clamp
-  const kBolt = (BOLT_E_MODULUS * screw.stressArea) / clampLength;
+  const kBolt = (getBoltEModulus(gradeName) * screw.stressArea) / clampLength;
 
   // Clamp stiffness (VDI 2230 simplified cone model)
   // Using substitution diameter approach
@@ -53,7 +61,7 @@ export function calculateJointStiffness(
     diagramData.push({
       deformation: Math.round(def * 1000) / 1000, // μm precision
       boltForce: Math.round(kBolt * def),
-      clampForce: Math.round(preload - kClamp * (def - preload / kBolt)),
+      clampForce: Math.round(Math.max(0, preload - kClamp * (def - preload / kBolt))),
     });
   }
 

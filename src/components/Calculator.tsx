@@ -447,6 +447,7 @@ export default function Calculator() {
           screw={screw}
           material={clampedMaterial}
           clampLength={clampLength}
+          gradeName={grade.name}
         />
       </div>
     </div>

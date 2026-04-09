@@ -4,7 +4,7 @@ import { FrictionPair } from '../data/friction';
 import { WasherData } from '../data/washers';
 import { NutData } from '../data/nuts';
 import { AssemblyType } from './AssemblyDiagram';
-import { BoltGrade } from '../calc/torque';
+import { BoltGrade, calculateTorque } from '../calc/torque';
 import { calculateSurfacePressure, SurfacePressureResult } from '../calc/surfacePressure';
 import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadStripping';
 import { calculateJointStiffness, JointStiffnessResult } from '../calc/jointStiffness';
@@ -96,8 +96,20 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   // Joint stiffness
   let js: JointStiffnessResult | null = null;
   if (clampedMaterial && clampLength > 0) {
-    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength);
+    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name);
   }
+
+  // Torque range accounting for ±20% friction scatter (VDI 2230)
+  const torqueMin = calculateTorque(preload, screw, {
+    ...friction,
+    muThread: friction.muThread * 0.8,
+    muHead: friction.muHead * 0.8,
+  });
+  const torqueMax = calculateTorque(preload, screw, {
+    ...friction,
+    muThread: friction.muThread * 1.2,
+    muHead: friction.muHead * 1.2,
+  });
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
@@ -119,6 +131,9 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
             <div className="text-2xl font-bold font-mono" style={{ color: 'var(--brand-2)' }}>
               {(torque * Nmto).toFixed(3)} <span className="text-sm">{torqueUnit}</span>
             </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+              Range: {(torqueMin * Nmto).toFixed(3)} – {(torqueMax * Nmto).toFixed(3)} {torqueUnit} (±20% friction scatter)
+            </div>
           </div>
           <div className="rounded-lg p-4" style={{ backgroundColor: '#fbe9e7' }}>
             <div className="text-xs font-medium uppercase" style={{ color: 'var(--brand)' }}>Preload Force</div>
@@ -128,6 +143,26 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
           </div>
         </div>
       </div>
+
+      {/* Polymer creep warning */}
+      {(clampedMaterial?.category === 'polymer' || clampedMaterial?.category === 'composite' ||
+        tappedMaterial?.category === 'polymer' || tappedMaterial?.category === 'composite') && (
+        <div className="card p-6" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
+          <h3 className="text-sm font-semibold mb-2" style={{ color: '#e65100' }}>
+            ⚠ Polymer Creep Warning
+          </h3>
+          <p className="text-sm mb-2" style={{ color: '#4e342e' }}>
+            PA12/PEEK and similar polymers lose 10–30% of preload over time due to creep and stress relaxation.
+          </p>
+          <p className="text-sm font-medium mb-1" style={{ color: '#4e342e' }}>Consider:</p>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
+            <li>Re-torquing after 24h settling period</li>
+            <li>Designing for lower initial utilization (50-70%)</li>
+            <li>Using a washer to distribute load</li>
+            <li>Service preload ≈ 70-85% of initial preload</li>
+          </ul>
+        </div>
+      )}
 
       {/* Bolt utilization */}
       <div className="card p-6">

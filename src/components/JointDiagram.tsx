@@ -8,9 +8,10 @@ interface Props {
   screw: ScrewData | null;
   material: MaterialData | null;
   clampLength: number;
+  gradeName: string;
 }
 
-export default function JointDiagram({ preload, screw, material, clampLength }: Props) {
+export default function JointDiagram({ preload, screw, material, clampLength, gradeName }: Props) {
   if (!screw || !material || !preload) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
@@ -22,7 +23,7 @@ export default function JointDiagram({ preload, screw, material, clampLength }: 
     );
   }
 
-  const js = calculateJointStiffness(preload, screw, material, clampLength);
+  const js = calculateJointStiffness(preload, screw, material, clampLength, gradeName);
 
   // Build diagram data: bolt extension and clamp compression
   const preloadDeformation = preload / js.boltStiffness;
