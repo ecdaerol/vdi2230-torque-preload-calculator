@@ -563,6 +563,7 @@ export default function Calculator() {
           preload={preload}
           screw={screw}
           material={clampedMaterial}
+          secondMaterial={tappedMaterial}
           clampLength={clampLength}
           gradeName={grade.name}
         />

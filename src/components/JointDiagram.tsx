@@ -7,23 +7,24 @@ interface Props {
   preload: number;
   screw: ScrewData | null;
   material: MaterialData | null;
+  secondMaterial?: MaterialData | null;
   clampLength: number;
   gradeName: string;
 }
 
-export default function JointDiagram({ preload, screw, material, clampLength, gradeName }: Props) {
+export default function JointDiagram({ preload, screw, material, secondMaterial, clampLength, gradeName }: Props) {
   if (!screw || !material || !preload) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">Joint Diagram</h3>
-        <div className="h-64 flex items-center justify-center text-slate-400">
+      <div className="card p-6">
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--ink)' }}>Joint Diagram</h3>
+        <div className="h-64 flex items-center justify-center" style={{ color: 'var(--muted)' }}>
           Enter values to see joint diagram
         </div>
       </div>
     );
   }
 
-  const js = calculateJointStiffness(preload, screw, material, clampLength, gradeName);
+  const js = calculateJointStiffness(preload, screw, material, clampLength, gradeName, secondMaterial ?? undefined);
 
   // Build diagram data: bolt extension and clamp compression
   const preloadDeformation = preload / js.boltStiffness;
@@ -33,19 +34,18 @@ export default function JointDiagram({ preload, screw, material, clampLength, gr
   for (let i = 0; i <= 40; i++) {
     const def = (i / 40) * maxDef;
     const boltForce = js.boltStiffness * def;
-    // Clamp force starts at preload and decreases as bolt extends beyond preload deformation
     const clampRelief = js.clampStiffness * Math.max(0, def - preloadDeformation);
     const clampForce = Math.max(0, preload - clampRelief);
     points.push({
-      deformation: parseFloat((def * 1000).toFixed(1)), // convert to μm
+      deformation: parseFloat((def * 1000).toFixed(1)),
       bolt: Math.round(boltForce),
       clamp: Math.round(clampForce),
     });
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-      <h3 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">Joint Diagram (VDI 2230)</h3>
+    <div className="card p-6">
+      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--ink)' }}>Joint Diagram (VDI 2230)</h3>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={points} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.3} />

@@ -86,11 +86,11 @@ describe('calculateSurfacePressure', () => {
     expect(result.status).toBe('warning');
   });
 
-  it('set screw with zero head diameter gives zero bearing area', () => {
-    // Set screws have headDiameter=0, so bearing area is effectively 0
-    // This should be handled upstream (Results.tsx skips set screws)
+  it('set screw (OD=0 < ID) returns danger with zero bearing area', () => {
+    // Guard: OD <= ID → bearingArea=0, pressure=Infinity, SF=0, status=danger
     const result = calculateSurfacePressure(5000, M6_set, alu6061);
-    // headDiameter=0, holeDiameter=6.6 → OD < ID → negative area → pressure = infinity
-    expect(result.pressure).not.toBeNaN();
+    expect(result.bearingArea).toBe(0);
+    expect(result.safetyFactor).toBe(0);
+    expect(result.status).toBe('danger');
   });
 });
