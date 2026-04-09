@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/vdi2230-torque-preload-calculator/',
+  base: '/torque-calc/',
 });

@@ -13,6 +13,13 @@ export default function ScrewSelector({ value, onChange }: Props) {
     return acc;
   }, {} as Record<string, ScrewData[]>);
 
+  const formatOption = (s: ScrewData) => {
+    const drive = s.driveType === 'Torx' ? s.driveSize : `Hex ${s.driveSize}mm`;
+    if (!s.hasHead) return `${s.size} × ${s.pitch} — ${drive}`;
+    if (s.shoulderDiameter) return `${s.size} × ${s.pitch} — ${drive} (⌀${s.shoulderDiameter} shoulder)`;
+    return `${s.size} × ${s.pitch} — ${drive} (⌀${s.headDiameter} head)`;
+  };
+
   return (
     <div>
       <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
@@ -27,12 +34,12 @@ export default function ScrewSelector({ value, onChange }: Props) {
           if (screw) onChange(screw);
         }}
       >
-        <option value="">Select a Torx screw...</option>
+        <option value="">Select a screw...</option>
         {Object.entries(grouped).map(([group, screws]) => (
           <optgroup key={group} label={group}>
             {screws.map(s => (
               <option key={`${s.standard}|${s.size}`} value={`${s.standard}|${s.size}`}>
-                {s.size} × {s.pitch} — {s.torxSize} (⌀{s.headDiameter} head)
+                {formatOption(s)}
               </option>
             ))}
           </optgroup>
@@ -43,9 +50,14 @@ export default function ScrewSelector({ value, onChange }: Props) {
           <span>Pitch: {value.pitch} mm</span>
           <span>Stress area: {value.stressArea} mm²</span>
           <span>Pitch ⌀: {value.d2} mm</span>
-          <span>Head ⌀: {value.headDiameter} mm</span>
+          <span>Drive: {value.driveType} {value.driveSize}{value.driveType === 'Hex socket' ? ' mm' : ''}</span>
           <span>Minor ⌀: {value.d3} mm</span>
           <span>Clearance hole: {value.holeDiameter} mm</span>
+          {value.hasHead && <span>Head ⌀: {value.headDiameter} mm</span>}
+          {value.hasHead && <span>Head height: {value.headHeight} mm</span>}
+          {value.shoulderDiameter && <span>Shoulder ⌀: {value.shoulderDiameter} mm</span>}
+          {value.isCountersunk && <span className="text-amber-600 dark:text-amber-400">Countersunk</span>}
+          {!value.hasHead && <span className="text-amber-600 dark:text-amber-400">Set screw (no head)</span>}
         </div>
       )}
     </div>

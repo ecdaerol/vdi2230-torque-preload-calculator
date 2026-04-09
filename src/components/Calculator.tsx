@@ -3,6 +3,7 @@ import ScrewSelector from './ScrewSelector';
 import MaterialSelector from './MaterialSelector';
 import Results from './Results';
 import JointDiagram from './JointDiagram';
+import AssemblyDiagram from './AssemblyDiagram';
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 import { FrictionPair, frictionDatabase } from '../data/friction';
@@ -12,7 +13,8 @@ export default function Calculator() {
   const [mode, setMode] = useState<'torque-to-preload' | 'preload-to-torque'>('torque-to-preload');
   const [inputValue, setInputValue] = useState<number>(0);
   const [screw, setScrew] = useState<ScrewData | null>(null);
-  const [material, setMaterial] = useState<MaterialData | null>(null);
+  const [clampedMaterial, setClampedMaterial] = useState<MaterialData | null>(null);
+  const [tappedMaterial, setTappedMaterial] = useState<MaterialData | null>(null);
   const [frictionIdx, setFrictionIdx] = useState(0);
   const [customFriction, setCustomFriction] = useState<FrictionPair | null>(null);
   const [gradeIdx, setGradeIdx] = useState(0);
@@ -95,9 +97,22 @@ export default function Calculator() {
             <ScrewSelector value={screw} onChange={handleScrewChange} />
           </div>
 
-          {/* Material selector */}
+          {/* Clamped material */}
           <div className="mb-4">
-            <MaterialSelector value={material} onChange={setMaterial} />
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-full bg-blue-400"></div>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Clamped Part (through-hole)</label>
+            </div>
+            <MaterialSelector value={clampedMaterial} onChange={setClampedMaterial} />
+          </div>
+
+          {/* Tapped material */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Tapped Part (threaded into)</label>
+            </div>
+            <MaterialSelector value={tappedMaterial} onChange={setTappedMaterial} />
           </div>
 
           {/* Bolt grade */}
@@ -203,13 +218,14 @@ export default function Calculator() {
         </div>
       </div>
 
-      {/* Right: Results */}
+      {/* Right: Results + Diagrams */}
       <div className="space-y-4">
         <Results
           mode={mode}
           inputValue={inputValue}
           screw={screw}
-          material={material}
+          clampedMaterial={clampedMaterial}
+          tappedMaterial={tappedMaterial}
           friction={friction}
           grade={grade}
           engagementLength={engagementLength}
@@ -219,8 +235,15 @@ export default function Calculator() {
         <JointDiagram
           preload={preload}
           screw={screw}
-          material={material}
+          material={clampedMaterial}
           clampLength={clampLength}
+        />
+        <AssemblyDiagram
+          screw={screw}
+          clampedMaterial={clampedMaterial}
+          tappedMaterial={tappedMaterial}
+          clampLength={clampLength}
+          engagementLength={engagementLength}
         />
       </div>
     </div>

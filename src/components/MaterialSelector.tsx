@@ -27,7 +27,7 @@ export default function MaterialSelector({ value, onChange }: Props) {
   return (
     <div>
       <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-        Clamped Material (nut side)
+        Material
       </label>
       <select
         className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

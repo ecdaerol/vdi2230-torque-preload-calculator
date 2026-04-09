@@ -10,7 +10,8 @@ interface Props {
   mode: 'torque-to-preload' | 'preload-to-torque';
   inputValue: number;
   screw: ScrewData | null;
-  material: MaterialData | null;
+  clampedMaterial: MaterialData | null;
+  tappedMaterial: MaterialData | null;
   friction: FrictionPair;
   grade: BoltGrade;
   engagementLength: number;
@@ -18,13 +19,14 @@ interface Props {
   useImperial: boolean;
 }
 
-function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' }) {
+function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' }) {
   const styles = {
     ok: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
     warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     danger: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    na: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
   };
-  const labels = { ok: 'OK', warning: 'WARNING', danger: 'DANGER' };
+  const labels = { ok: 'OK', warning: 'WARNING', danger: 'DANGER', na: 'N/A' };
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${styles[status]}`}>
       {labels[status]}
@@ -48,11 +50,11 @@ function ProgressBar({ value, max, label }: { value: number; max: number; label:
   );
 }
 
-export default function Results({ mode, inputValue, screw, material, friction, grade, engagementLength, clampLength, useImperial }: Props) {
-  if (!screw || !material || !inputValue) {
+export default function Results({ mode, inputValue, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial }: Props) {
+  if (!screw || !inputValue) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <p className="text-slate-400 text-center">Select screw, material, and enter a value to see results.</p>
+        <p className="text-slate-400 text-center">Select a screw and enter a value to see results.</p>
       </div>
     );
   }
@@ -70,9 +72,26 @@ export default function Results({ mode, inputValue, screw, material, friction, g
   }
 
   const utilization = calculateBoltUtilization(preload, screw, grade);
-  const sp: SurfacePressureResult = calculateSurfacePressure(preload, screw, material);
-  const ts: ThreadStrippingResult = calculateThreadStripping(preload, screw, material, engagementLength);
-  const js: JointStiffnessResult = calculateJointStiffness(preload, screw, material, clampLength);
+
+  // Surface pressure — uses CLAMPED material (head bears on this)
+  // Skip for set screws (no head)
+  const hasSurfacePressure = screw.hasHead && clampedMaterial;
+  let sp: SurfacePressureResult | null = null;
+  if (hasSurfacePressure) {
+    sp = calculateSurfacePressure(preload, screw, clampedMaterial!);
+  }
+
+  // Thread stripping — uses TAPPED material
+  let ts: ThreadStrippingResult | null = null;
+  if (tappedMaterial && engagementLength > 0) {
+    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength);
+  }
+
+  // Joint stiffness — uses clamped material for clamp stiffness
+  let js: JointStiffnessResult | null = null;
+  if (clampedMaterial && clampLength > 0) {
+    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength);
+  }
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
@@ -107,83 +126,103 @@ export default function Results({ mode, inputValue, screw, material, friction, g
         <ProgressBar value={utilization} max={100} label={`${(preload * Nto).toFixed(0)} ${forceUnit} / ${(grade.proofStress * screw.stressArea * Nto).toFixed(0)} ${forceUnit}`} />
         {utilization > 100 && (
           <div className="mt-2 text-sm text-red-600 dark:text-red-400 font-medium">
-            ⚠ Bolt proof load exceeded! Reduce torque or use a higher grade.
+            Bolt proof load exceeded! Reduce torque or use a higher grade.
           </div>
         )}
       </div>
 
-      {/* Surface pressure */}
+      {/* Surface pressure — clamped material */}
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Surface Pressure</h3>
-          <StatusBadge status={sp.status} />
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            Surface Pressure {clampedMaterial ? `— ${clampedMaterial.name}` : ''}
+          </h3>
+          <StatusBadge status={!hasSurfacePressure ? 'na' : sp!.status} />
         </div>
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Pressure</div>
-            <div className="font-mono font-bold">{sp.pressure.toFixed(1)} {pressureUnit}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Limit (σy)</div>
-            <div className="font-mono font-bold">{sp.limit.toFixed(1)} {pressureUnit}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Safety Factor</div>
-            <div className={`font-mono font-bold ${sp.safetyFactor < 1 ? 'text-red-600' : sp.safetyFactor < 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
-              {sp.safetyFactor.toFixed(2)}
+        {!hasSurfacePressure ? (
+          <p className="text-sm text-slate-400">
+            {!screw.hasHead ? 'N/A for set screws (no bearing surface)' : 'Select a clamped material to check surface pressure.'}
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Pressure</div>
+                <div className="font-mono font-bold">{sp!.pressure.toFixed(1)} {pressureUnit}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Limit (σy)</div>
+                <div className="font-mono font-bold">{sp!.limit.toFixed(1)} {pressureUnit}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Safety Factor</div>
+                <div className={`font-mono font-bold ${sp!.safetyFactor < 1 ? 'text-red-600' : sp!.safetyFactor < 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {sp!.safetyFactor.toFixed(2)}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="mt-1 text-xs text-slate-400">Bearing area: {sp.bearingArea.toFixed(1)} mm²</div>
+            <div className="mt-1 text-xs text-slate-400">Bearing area: {sp!.bearingArea.toFixed(1)} mm²</div>
+          </>
+        )}
       </div>
 
-      {/* Thread stripping */}
+      {/* Thread stripping — tapped material */}
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Thread Stripping ({material.name})</h3>
-          <StatusBadge status={ts.status} />
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            Thread Stripping {tappedMaterial ? `— ${tappedMaterial.name}` : ''}
+          </h3>
+          <StatusBadge status={!ts ? 'na' : ts.status} />
         </div>
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Strip Force</div>
-            <div className="font-mono font-bold">{(ts.strippingForce * Nto).toFixed(0)} {forceUnit}</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Safety Factor</div>
-            <div className={`font-mono font-bold ${ts.safetyFactor < 1 ? 'text-red-600' : ts.safetyFactor < 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
-              {ts.safetyFactor.toFixed(2)}
+        {!ts ? (
+          <p className="text-sm text-slate-400">Select a tapped material and engagement length to check thread stripping.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Strip Force</div>
+                <div className="font-mono font-bold">{(ts.strippingForce * Nto).toFixed(0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Safety Factor</div>
+                <div className={`font-mono font-bold ${ts.safetyFactor < 1 ? 'text-red-600' : ts.safetyFactor < 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {ts.safetyFactor.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Min. Engagement</div>
+                <div className="font-mono font-bold">{ts.minEngagementLength.toFixed(1)} mm</div>
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Min. Engagement</div>
-            <div className="font-mono font-bold">{ts.minEngagementLength.toFixed(1)} mm</div>
-          </div>
-        </div>
-        {ts.status !== 'ok' && (
-          <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-            Increase engagement length to ≥ {ts.minEngagementLength.toFixed(1)} mm for SF ≥ 1.5
-          </div>
+            {ts.status !== 'ok' && (
+              <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+                Increase engagement length to ≥ {ts.minEngagementLength.toFixed(1)} mm for SF ≥ 1.5
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Joint stiffness summary */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">Joint Stiffness</h3>
-        <div className="grid grid-cols-3 gap-3 text-sm">
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Bolt k_b</div>
-            <div className="font-mono font-bold">{(js.boltStiffness / 1000).toFixed(1)} kN/mm</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Clamp k_c</div>
-            <div className="font-mono font-bold">{(js.clampStiffness / 1000).toFixed(1)} kN/mm</div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Load Factor n</div>
-            <div className="font-mono font-bold">{js.loadFactor.toFixed(3)}</div>
+      {js && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">Joint Stiffness</h3>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Bolt k_b</div>
+              <div className="font-mono font-bold">{(js.boltStiffness / 1000).toFixed(1)} kN/mm</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Clamp k_c</div>
+              <div className="font-mono font-bold">{(js.clampStiffness / 1000).toFixed(1)} kN/mm</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">Load Factor n</div>
+              <div className="font-mono font-bold">{js.loadFactor.toFixed(3)}</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
