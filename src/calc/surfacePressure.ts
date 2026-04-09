@@ -9,14 +9,20 @@ export interface SurfacePressureResult {
   status: 'ok' | 'warning' | 'danger';
 }
 
+/**
+ * Calculate surface pressure under head (or washer).
+ * bearingOD/bearingID override screw head/hole diameters when a washer is used.
+ */
 export function calculateSurfacePressure(
   preload: number,
   screw: ScrewData,
-  material: MaterialData
+  material: MaterialData,
+  bearingOD?: number,
+  bearingID?: number
 ): SurfacePressureResult {
-  const bearingArea = (Math.PI / 4) * (
-    Math.pow(screw.headDiameter, 2) - Math.pow(screw.holeDiameter, 2)
-  );
+  const od = bearingOD ?? screw.headDiameter;
+  const id = bearingID ?? screw.holeDiameter;
+  const bearingArea = (Math.PI / 4) * (od * od - id * id);
   const pressure = preload / bearingArea;
   const limit = material.yieldStrength;
   const safetyFactor = limit / pressure;

@@ -1,6 +1,9 @@
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 import { FrictionPair } from '../data/friction';
+import { WasherData } from '../data/washers';
+import { NutData } from '../data/nuts';
+import { AssemblyType } from './AssemblyDiagram';
 import { BoltGrade, calculateTorque, calculatePreload, calculateBoltUtilization } from '../calc/torque';
 import { calculateSurfacePressure, SurfacePressureResult } from '../calc/surfacePressure';
 import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadStripping';
@@ -17,6 +20,10 @@ interface Props {
   engagementLength: number;
   clampLength: number;
   useImperial: boolean;
+  assemblyType: AssemblyType;
+  headWasher: WasherData | null;
+  nutWasher: WasherData | null;
+  nut: NutData | null;
 }
 
 function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' }) {
@@ -50,7 +57,7 @@ function ProgressBar({ value, max, label }: { value: number; max: number; label:
   );
 }
 
-export default function Results({ mode, inputValue, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial }: Props) {
+export default function Results({ mode, inputValue, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial, assemblyType, headWasher, nutWasher, nut }: Props) {
   if (!screw || !inputValue) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
@@ -73,17 +80,29 @@ export default function Results({ mode, inputValue, screw, clampedMaterial, tapp
 
   const utilization = calculateBoltUtilization(preload, screw, grade);
 
-  // Surface pressure — uses CLAMPED material (head bears on this)
-  // Skip for set screws (no head)
+  // --- Surface pressure (head side) ---
+  // When washer is present, bearing area = washer OD/ID; otherwise screw head
   const hasSurfacePressure = screw.hasHead && clampedMaterial;
   let sp: SurfacePressureResult | null = null;
   if (hasSurfacePressure) {
-    sp = calculateSurfacePressure(preload, screw, clampedMaterial!);
+    const bearingOD = headWasher ? headWasher.outerDiameter : undefined;
+    const bearingID = headWasher ? headWasher.innerDiameter : undefined;
+    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, bearingOD, bearingID);
   }
 
-  // Thread stripping — uses TAPPED material
+  // --- Surface pressure (nut side) — only for through-nut ---
+  let spNut: SurfacePressureResult | null = null;
+  if (assemblyType === 'through-nut' && tappedMaterial && nut) {
+    const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
+    const nutBearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
+    spNut = calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
+  }
+
+  // --- Thread stripping ---
+  // For tapped-hole/standoff: check tapped material
+  // For through-nut: no thread stripping risk in parts (nut is steel)
   let ts: ThreadStrippingResult | null = null;
-  if (tappedMaterial && engagementLength > 0) {
+  if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
     ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength);
   }
 
@@ -131,11 +150,11 @@ export default function Results({ mode, inputValue, screw, clampedMaterial, tapp
         )}
       </div>
 
-      {/* Surface pressure — clamped material */}
+      {/* Surface pressure — head side (clamped material) */}
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-            Surface Pressure {clampedMaterial ? `— ${clampedMaterial.name}` : ''}
+            Surface Pressure (Head){clampedMaterial ? ` — ${clampedMaterial.name}` : ''}{headWasher ? ` + ${headWasher.standard} washer` : ''}
           </h3>
           <StatusBadge status={!hasSurfacePressure ? 'na' : sp!.status} />
         </div>
@@ -166,15 +185,52 @@ export default function Results({ mode, inputValue, screw, clampedMaterial, tapp
         )}
       </div>
 
-      {/* Thread stripping — tapped material */}
+      {/* Surface pressure — nut side (through-nut only) */}
+      {assemblyType === 'through-nut' && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Surface Pressure (Nut){tappedMaterial ? ` — ${tappedMaterial.name}` : ''}{nutWasher ? ` + ${nutWasher.standard} washer` : ''}
+            </h3>
+            <StatusBadge status={!spNut ? 'na' : spNut.status} />
+          </div>
+          {!spNut ? (
+            <p className="text-sm text-slate-400">Select bottom material and nut to check nut-side surface pressure.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Pressure</div>
+                  <div className="font-mono font-bold">{spNut.pressure.toFixed(1)} {pressureUnit}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Limit (σy)</div>
+                  <div className="font-mono font-bold">{spNut.limit.toFixed(1)} {pressureUnit}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">Safety Factor</div>
+                  <div className={`font-mono font-bold ${spNut.safetyFactor < 1 ? 'text-red-600' : spNut.safetyFactor < 1.5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                    {spNut.safetyFactor.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-slate-400">Bearing area: {spNut.bearingArea.toFixed(1)} mm²</div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Thread stripping — tapped material (not for through-nut) */}
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
             Thread Stripping {tappedMaterial ? `— ${tappedMaterial.name}` : ''}
           </h3>
-          <StatusBadge status={!ts ? 'na' : ts.status} />
+          <StatusBadge status={assemblyType === 'through-nut' ? 'na' : (!ts ? 'na' : ts.status)} />
         </div>
-        {!ts ? (
+        {assemblyType === 'through-nut' ? (
+          <p className="text-sm text-slate-400">N/A — through-bolt with nut (no thread engagement in parts).</p>
+        ) : !ts ? (
           <p className="text-sm text-slate-400">Select a tapped material and engagement length to check thread stripping.</p>
         ) : (
           <>
