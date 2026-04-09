@@ -91,18 +91,19 @@ export default function Calculator() {
   }, [engagementLength, clampLength, screw]);
 
   // Compute preload and torque based on input mode
+  const effectiveBearingOD = headWasher ? headWasher.outerDiameter : undefined;
   let preload = 0;
   let torque = 0;
   if (screw) {
     if (inputMode === 'utilization' && utilization > 0) {
       preload = (utilization / 100) * grade.proofStress * screw.stressArea;
-      torque = calculateTorque(preload, screw, friction);
+      torque = calculateTorque(preload, screw, friction, effectiveBearingOD);
     } else if (inputMode === 'torque' && torqueInput > 0) {
       torque = torqueInput;
-      preload = calculatePreload(torqueInput, screw, friction);
+      preload = calculatePreload(torqueInput, screw, friction, effectiveBearingOD);
     } else if (inputMode === 'preload' && preloadInput > 0) {
       preload = preloadInput;
-      torque = calculateTorque(preloadInput, screw, friction);
+      torque = calculateTorque(preloadInput, screw, friction, effectiveBearingOD);
     }
   }
 

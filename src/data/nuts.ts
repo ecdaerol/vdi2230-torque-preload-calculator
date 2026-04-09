@@ -1,3 +1,7 @@
+/**
+ * Hex nut dimensions per ISO 4032 (standard) and ISO 4035 (thin).
+ * Bearing diameter approximated as width across flats (conservative).
+ */
 export interface NutData {
   standard: string;
   type: string;

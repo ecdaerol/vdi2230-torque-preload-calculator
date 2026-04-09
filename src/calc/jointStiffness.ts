@@ -49,7 +49,13 @@ export function calculateJointStiffness(
     kClamp = Ec * screw.d * Math.PI / 2;
   }
 
-  const loadFactor = kBolt / (kBolt + kClamp);
+  // Enforce physical invariant: stiffness must be positive
+  if (kClamp <= 0 || !isFinite(kClamp)) {
+    // Fallback: simplified estimation
+    kClamp = Ec * screw.d * Math.PI / 2;
+  }
+
+  const loadFactor = Math.max(0.001, Math.min(0.999, kBolt / (kBolt + kClamp)));
 
   // Generate diagram data points
   const maxDeformation = (preload / kBolt) * 2.5;

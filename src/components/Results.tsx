@@ -111,17 +111,18 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   }
 
   // Torque range using per-friction-pair scatter band (VDI 2230)
+  const effectiveBearingOD = headWasher ? headWasher.outerDiameter : undefined;
   const scatter = friction.scatter ?? 0.20;
   const torqueMin = calculateTorque(preload, screw, {
     ...friction,
     muThread: friction.muThread * (1 - scatter),
     muHead: friction.muHead * (1 - scatter),
-  });
+  }, effectiveBearingOD);
   const torqueMax = calculateTorque(preload, screw, {
     ...friction,
     muThread: friction.muThread * (1 + scatter),
     muHead: friction.muHead * (1 + scatter),
-  });
+  }, effectiveBearingOD);
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;

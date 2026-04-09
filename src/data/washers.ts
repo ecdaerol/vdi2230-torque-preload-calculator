@@ -1,3 +1,6 @@
+/**
+ * Washer dimensions per ISO 7089 (normal), ISO 7092 (small), ISO 7093-1 (large).
+ */
 export interface WasherData {
   standard: string;
   type: string;

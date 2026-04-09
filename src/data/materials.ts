@@ -1,3 +1,14 @@
+/**
+ * Material properties from:
+ * - Aluminum alloys: ASM Handbook Vol. 2, MMPDS-17
+ * - PEEK/POM: Victrex/Ensinger datasheets, typical injection molded values
+ * - PA12 3D printed: HP MJF / EOS SLS material datasheets (2024)
+ * - Steel/Stainless: EN 10025, EN 10088
+ * - Compressive yield values: CES EduPack, manufacturer datasheets
+ *
+ * Note: 3D printed material properties are highly process-dependent.
+ * Values shown are typical; verify against your specific process parameters.
+ */
 export interface MaterialData {
   name: string;
   category: 'metal' | 'polymer' | 'composite' | 'custom';

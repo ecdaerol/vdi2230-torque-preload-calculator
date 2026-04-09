@@ -1,3 +1,9 @@
+/**
+ * Metric screw thread geometry per ISO 261 / ISO 724.
+ * Head dimensions per ISO 14580, 14581, 14583, 4762, 4026, 7379.
+ * Stress areas per ISO 898-1 Table 2.
+ * Clearance holes per ISO 273 (medium fit).
+ */
 export interface ScrewData {
   standard: string;
   type: string;

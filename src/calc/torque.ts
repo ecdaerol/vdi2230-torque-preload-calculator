@@ -15,7 +15,7 @@ const VDI_THREAD_FRICTION_FACTOR = 0.58;
 
 export interface BoltGrade {
   name: string;
-  proofStress: number; // MPa
+  proofStress: number; // Rp0.2 in MPa (minimum yield / 0.2% proof stress per ISO 898-1)
 }
 
 export const boltGrades: BoltGrade[] = [
@@ -33,10 +33,12 @@ export const boltGrades: BoltGrade[] = [
 export function calculateTorque(
   preload: number,
   screw: ScrewData,
-  friction: FrictionPair
+  friction: FrictionPair,
+  bearingOD?: number  // washer OD or nut bearing diameter override
 ): number {
-  const headFrictionTerm = screw.headDiameter > 0
-    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
+  const headDia = bearingOD ?? screw.headDiameter;
+  const headFrictionTerm = headDia > 0
+    ? ((headDia + screw.holeDiameter) / 4) * friction.muHead
     : 0;
   const T = preload * (
     VDI_PITCH_FACTOR * screw.pitch +
@@ -52,10 +54,12 @@ export function calculateTorque(
 export function calculatePreload(
   torque: number,
   screw: ScrewData,
-  friction: FrictionPair
+  friction: FrictionPair,
+  bearingOD?: number  // washer OD or nut bearing diameter override
 ): number {
-  const headFrictionTerm = screw.headDiameter > 0
-    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
+  const headDia = bearingOD ?? screw.headDiameter;
+  const headFrictionTerm = headDia > 0
+    ? ((headDia + screw.holeDiameter) / 4) * friction.muHead
     : 0;
   const factor = VDI_PITCH_FACTOR * screw.pitch +
     VDI_THREAD_FRICTION_FACTOR * screw.d2 * friction.muThread +

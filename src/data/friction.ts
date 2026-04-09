@@ -1,3 +1,9 @@
+/**
+ * Friction coefficients per VDI 2230 Table A1 and VDI 2230 Supplement.
+ * Scatter bands are typical ranges from bolting handbooks.
+ * Actual friction depends on surface finish, coating, lubricant batch,
+ * and tightening speed. Verify experimentally for critical applications.
+ */
 export interface FrictionPair {
   name: string;
   condition: string;
