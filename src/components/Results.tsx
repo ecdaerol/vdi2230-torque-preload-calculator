@@ -294,40 +294,34 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
         )}
       </div>
 
-      {/* Surface pressure — head side */}
-      <div className="card p-5">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
-            Surface Pressure (Head){clampedMaterial ? ` — ${clampedMaterial.name}` : ''}{headWasher ? ` + ${headWasher.standard} washer` : ''}
-          </h3>
-          <StatusBadge status={!hasSurfacePressure ? 'na' : sp!.status} />
-        </div>
-        {!hasSurfacePressure ? (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
-            {!screw.hasHead ? 'N/A for set screws (no bearing surface)' : 'Select a clamped material to check surface pressure.'}
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Pressure</div>
-                <div className="text-sm font-mono font-semibold">{safe(sp!.pressure)} {pressureUnit}</div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (&sigma;y)</div>
-                <div className="text-sm font-mono font-semibold">{safe(sp!.limit)} {pressureUnit}</div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
-                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(sp!.safetyFactor) }}>
-                  {safeN(sp!.safetyFactor, 2)}
-                </div>
+      {/* Surface pressure — head side (hidden entirely when N/A) */}
+      {hasSurfacePressure && sp && (
+        <div className="card p-5">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+              Surface Pressure (Head){clampedMaterial ? ` — ${clampedMaterial.name}` : ''}{headWasher ? ` + ${headWasher.standard} washer` : ''}
+            </h3>
+            <StatusBadge status={sp.status} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Pressure</div>
+              <div className="text-sm font-mono font-semibold">{safe(sp.pressure)} {pressureUnit}</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (&sigma;y)</div>
+              <div className="text-sm font-mono font-semibold">{safe(sp.limit)} {pressureUnit}</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
+              <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(sp.safetyFactor) }}>
+                {safeN(sp.safetyFactor, 2)}
               </div>
             </div>
-            <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>Bearing area: {safe(sp!.bearingArea)} mm²</div>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>Bearing area: {safe(sp.bearingArea)} mm²</div>
+        </div>
+      )}
 
       {/* Surface pressure — nut side (through-nut only) */}
       {assemblyType === 'through-nut' && (
@@ -364,47 +358,41 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
         </div>
       )}
 
-      {/* Thread stripping */}
-      <div className="card p-5">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
-            Thread Stripping {tappedMaterial ? `— ${tappedMaterial.name}` : ''}
-          </h3>
-          <StatusBadge status={assemblyType === 'through-nut' ? 'na' : (!ts ? 'na' : ts.status)} />
+      {/* Thread stripping — hidden entirely when through-nut or no data */}
+      {ts && (
+        <div className="card p-5">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+              Thread Stripping {tappedMaterial ? `— ${tappedMaterial.name}` : ''}
+            </h3>
+            <StatusBadge status={ts.status} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Strip Force</div>
+              <div className="text-sm font-mono font-semibold">{safeN(ts.strippingForce * Nto, 0)} {forceUnit}</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
+              <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(ts.safetyFactor) }}>
+                {safeN(ts.safetyFactor, 2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Min. Engagement</div>
+              <div className="text-sm font-mono font-semibold">{safe(ts.minEngagementLength)} mm</div>
+            </div>
+          </div>
+          <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>
+            Critical mode: {ts.criticalMode === 'internal' ? 'nut/tapped hole thread' : 'bolt thread'} &middot; C = {safeN(ts.engagementFactor, 3)}
+          </div>
+          {ts.status !== 'ok' && (
+            <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
+              Increase engagement length to &ge; {safe(ts.minEngagementLength)} mm for SF &ge; 1.5
+            </div>
+          )}
         </div>
-        {assemblyType === 'through-nut' ? (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>N/A — through-bolt with nut (no thread engagement in parts).</p>
-        ) : !ts ? (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>Select a tapped material and engagement length to check thread stripping.</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Strip Force</div>
-                <div className="text-sm font-mono font-semibold">{safeN(ts.strippingForce * Nto, 0)} {forceUnit}</div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
-                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(ts.safetyFactor) }}>
-                  {safeN(ts.safetyFactor, 2)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Min. Engagement</div>
-                <div className="text-sm font-mono font-semibold">{safe(ts.minEngagementLength)} mm</div>
-              </div>
-            </div>
-            <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>
-              Critical mode: {ts.criticalMode === 'internal' ? 'nut/tapped hole thread' : 'bolt thread'} &middot; C = {safeN(ts.engagementFactor, 3)}
-            </div>
-            {ts.status !== 'ok' && (
-              <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
-                Increase engagement length to &ge; {safe(ts.minEngagementLength)} mm for SF &ge; 1.5
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       {/* Joint stiffness summary */}
       {js && (

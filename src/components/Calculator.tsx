@@ -74,7 +74,15 @@ export default function Calculator() {
       ? matchingNuts[nutIdx]
       : null;
 
-  // Reset washer/nut indices when screw changes and they go out of range
+  // --- Screw-type-specific UI flags ---
+  const isSetScrew = screw ? !screw.hasHead : false;
+  const isCountersunk = screw?.isCountersunk ?? false;
+  // Washer under head makes no sense for countersunk or headless screws
+  const showHeadWasher = !isSetScrew && !isCountersunk;
+  // Set screws can only be tapped-hole — no through-nut or standoff
+  const effectiveAssemblyType = isSetScrew ? 'tapped-hole' as AssemblyType : assemblyType;
+
+  // Reset washer/nut indices when screw changes
   const handleScrewChange = useCallback((s: ScrewData) => {
     setScrew(s);
     if (engagementLength === 0 || engagementLength === (screw?.d ?? 0) * 1.5) {
@@ -87,6 +95,14 @@ export default function Calculator() {
       setHeadWasherIdx(-1);
       setNutWasherIdx(-1);
       setNutIdx(0);
+    }
+    // Clear head washer if switching to countersunk or set screw
+    if (s.isCountersunk || !s.hasHead) {
+      setHeadWasherIdx(-1);
+    }
+    // Force tapped-hole for set screws
+    if (!s.hasHead) {
+      setAssemblyType('tapped-hole');
     }
   }, [engagementLength, clampLength, screw]);
 
@@ -154,18 +170,19 @@ export default function Calculator() {
         <div className="card p-6">
           <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--ink)' }}>Input Parameters</h3>
 
-          {/* Assembly type toggle */}
-          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: '#eeeeee' }}>
+          {/* Assembly type toggle — disabled for set screws (always tapped-hole) */}
+          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: '#eeeeee', opacity: isSetScrew ? 0.5 : 1 }}>
             {assemblyOptions.map((opt) => (
               <button
                 key={opt.value}
+                disabled={isSetScrew}
                 className="flex-1 px-2 py-2 rounded-[8px] text-sm font-medium transition-colors"
                 style={
-                  assemblyType === opt.value
+                  effectiveAssemblyType === opt.value
                     ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff', boxShadow: '0 1px 3px var(--shadow)' }
                     : { color: 'var(--muted)' }
                 }
-                onClick={() => setAssemblyType(opt.value)}
+                onClick={() => !isSetScrew && setAssemblyType(opt.value)}
               >
                 <span className="mr-1">{opt.icon}</span> {opt.label}
               </button>
@@ -268,43 +285,47 @@ export default function Calculator() {
             <ScrewSelector value={screw} onChange={handleScrewChange} />
           </div>
 
-          {/* Washer under head */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
-              Washer Under Head
-            </label>
-            <select
-              className={selectClass}
-              style={selectStyle}
-              value={headWasherIdx}
-              onChange={(e) => setHeadWasherIdx(parseInt(e.target.value))}
-            >
-              <option value={-1}>None</option>
-              {matchingWashers.map((w, i) => (
-                <option key={`hw-${i}`} value={i}>
-                  {formatWasher(w)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clamped material */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--brand)' }}></div>
-              <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                Clamped Part (through-hole)
+          {/* Washer under head — hidden for countersunk (conical seat) and set screws (no head) */}
+          {showHeadWasher && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+                Washer Under Head
               </label>
+              <select
+                className={selectClass}
+                style={selectStyle}
+                value={headWasherIdx}
+                onChange={(e) => setHeadWasherIdx(parseInt(e.target.value))}
+              >
+                <option value={-1}>None</option>
+                {matchingWashers.map((w, i) => (
+                  <option key={`hw-${i}`} value={i}>
+                    {formatWasher(w)}
+                  </option>
+                ))}
+              </select>
             </div>
-            <MaterialSelector value={clampedMaterial} onChange={setClampedMaterial} />
-          </div>
+          )}
+
+          {/* Clamped material — hidden for set screws (no clamped joint) */}
+          {!isSetScrew && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--brand)' }}></div>
+                <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                  Clamped Part (through-hole)
+                </label>
+              </div>
+              <MaterialSelector value={clampedMaterial} onChange={setClampedMaterial} />
+            </div>
+          )}
 
           {/* Tapped / Bottom material */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--warn)' }}></div>
               <label className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
-                {assemblyType === 'through-nut'
+                {effectiveAssemblyType === 'through-nut'
                   ? 'Bottom Part (through-hole)'
                   : 'Tapped Part (threaded)'}
               </label>
@@ -313,7 +334,7 @@ export default function Calculator() {
           </div>
 
           {/* Nut selector — only for through-nut */}
-          {assemblyType === 'through-nut' && (
+          {effectiveAssemblyType === 'through-nut' && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Nut
@@ -337,7 +358,7 @@ export default function Calculator() {
           )}
 
           {/* Washer under nut — only for through-nut */}
-          {assemblyType === 'through-nut' && (
+          {effectiveAssemblyType === 'through-nut' && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Washer Under Nut
@@ -359,7 +380,7 @@ export default function Calculator() {
           )}
 
           {/* Standoff length — only for standoff */}
-          {assemblyType === 'standoff' && (
+          {effectiveAssemblyType === 'standoff' && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Standoff Length [mm]
@@ -438,7 +459,7 @@ export default function Calculator() {
           </div>
 
           {/* Engagement length & clamp length */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className={`grid ${isSetScrew ? 'grid-cols-1' : 'grid-cols-2'} gap-3 mb-4`}>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Thread Engagement [mm]</label>
               <input
@@ -452,19 +473,22 @@ export default function Calculator() {
               />
               <span className="text-xs" style={{ color: 'var(--muted)' }}>Default: 1.5 &times; d</span>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Clamp Length [mm]</label>
-              <input
-                type="number"
-                step="0.1"
-                min="1"
-                className={inputClass}
-                style={selectStyle}
-                value={clampLength || ''}
-                onChange={(e) => setClampLength(parseFloat(e.target.value) || 0)}
-              />
-              <span className="text-xs" style={{ color: 'var(--muted)' }}>Default: 2 &times; d</span>
-            </div>
+            {/* Clamp length — hidden for set screws (no clamped joint) */}
+            {!isSetScrew && (
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Clamp Length [mm]</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  className={inputClass}
+                  style={selectStyle}
+                  value={clampLength || ''}
+                  onChange={(e) => setClampLength(parseFloat(e.target.value) || 0)}
+                />
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>Default: 2 &times; d</span>
+              </div>
+            )}
           </div>
 
           {/* Unit toggle */}
@@ -510,8 +534,8 @@ export default function Calculator() {
           engagementLength={engagementLength}
           clampLength={clampLength}
           useImperial={useImperial}
-          assemblyType={assemblyType}
-          headWasher={headWasher}
+          assemblyType={effectiveAssemblyType}
+          headWasher={showHeadWasher ? headWasher : null}
           nutWasher={nutWasher}
           nut={nut}
           bearingOD={bearingOD}
@@ -519,11 +543,11 @@ export default function Calculator() {
         />
         <AssemblyDiagram
           screw={screw}
-          clampedMaterial={clampedMaterial}
+          clampedMaterial={isSetScrew ? null : clampedMaterial}
           tappedMaterial={tappedMaterial}
           clampLength={clampLength}
           engagementLength={engagementLength}
-          assemblyType={assemblyType}
+          assemblyType={effectiveAssemblyType}
           headWasher={headWasher}
           nutWasher={nutWasher}
           nut={nut}
