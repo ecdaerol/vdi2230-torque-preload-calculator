@@ -90,19 +90,32 @@ export default function Calculator() {
     }
   }, [engagementLength, clampLength, screw]);
 
+  // Determine actual tightening-side bearing geometry.
+  // For tapped-hole / standoff: tightened from head side → use head washer if present.
+  // For through-nut: tightened from nut side → use nut (or nut washer) bearing surface.
+  let bearingOD: number | undefined;
+  let bearingID: number | undefined;
+  if (assemblyType === 'through-nut' && nut && screw) {
+    bearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
+    bearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
+  } else if (headWasher) {
+    bearingOD = headWasher.outerDiameter;
+    bearingID = headWasher.innerDiameter;
+  }
+
   // Compute preload and torque based on input mode
   let preload = 0;
   let torque = 0;
   if (screw) {
     if (inputMode === 'utilization' && utilization > 0) {
-      preload = (utilization / 100) * grade.proofStress * screw.stressArea;
-      torque = calculateTorque(preload, screw, friction);
+      preload = (utilization / 100) * grade.Rp02 * screw.stressArea;
+      torque = calculateTorque(preload, screw, friction, bearingOD, bearingID);
     } else if (inputMode === 'torque' && torqueInput > 0) {
       torque = torqueInput;
-      preload = calculatePreload(torqueInput, screw, friction);
+      preload = calculatePreload(torqueInput, screw, friction, bearingOD, bearingID);
     } else if (inputMode === 'preload' && preloadInput > 0) {
       preload = preloadInput;
-      torque = calculateTorque(preloadInput, screw, friction);
+      torque = calculateTorque(preloadInput, screw, friction, bearingOD, bearingID);
     }
   }
 
@@ -374,7 +387,7 @@ export default function Calculator() {
               onChange={(e) => setGradeIdx(parseInt(e.target.value))}
             >
               {boltGrades.map((g, i) => (
-                <option key={g.name} value={i}>{g.name} (Rp0.2 = {g.proofStress} MPa)</option>
+                <option key={g.name} value={i}>{g.name} (Rp0.2 = {g.Rp02} MPa)</option>
               ))}
             </select>
           </div>
@@ -501,6 +514,8 @@ export default function Calculator() {
           headWasher={headWasher}
           nutWasher={nutWasher}
           nut={nut}
+          bearingOD={bearingOD}
+          bearingID={bearingID}
         />
         <AssemblyDiagram
           screw={screw}

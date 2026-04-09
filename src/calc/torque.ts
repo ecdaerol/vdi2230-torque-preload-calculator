@@ -15,51 +15,70 @@ const VDI_THREAD_FRICTION_FACTOR = 0.58;
 
 export interface BoltGrade {
   name: string;
-  proofStress: number; // MPa
+  Rp02: number;    // MPa — minimum yield strength (0.2% proof stress) per ISO 898-1
+  tensileStrength: number; // MPa (Rm) — needed for thread stripping check
 }
 
 export const boltGrades: BoltGrade[] = [
-  { name: "8.8", proofStress: 640 },
-  { name: "10.9", proofStress: 940 },
-  { name: "12.9", proofStress: 1100 },
-  { name: "A2-70", proofStress: 450 },
-  { name: "A4-80", proofStress: 600 },
+  { name: "8.8", Rp02: 640, tensileStrength: 800 },
+  { name: "10.9", Rp02: 940, tensileStrength: 1040 },
+  { name: "12.9", Rp02: 1100, tensileStrength: 1220 },
+  { name: "A2-70", Rp02: 450, tensileStrength: 700 },
+  { name: "A4-80", Rp02: 600, tensileStrength: 800 },
 ];
+
+/**
+ * Compute D_km (mean bearing diameter) for the tightening side.
+ *
+ * When a washer or nut is the bearing surface, its OD/ID should be passed
+ * instead of the default screw head geometry. For set screws (headDiameter=0)
+ * the bearing friction term is zero.
+ */
+function computeDkm(screw: ScrewData, bearingOD?: number, bearingID?: number): number {
+  const od = bearingOD ?? screw.headDiameter;
+  const id = bearingID ?? screw.holeDiameter;
+  if (od <= 0) return 0; // set screws: no bearing friction
+  return (od + id) / 2;
+}
 
 /**
  * VDI 2230 tightening torque
  * T = F_V × (0.16 × p + 0.58 × d2 × μ_th + D_km/2 × μ_h)
+ *
+ * bearingOD/bearingID: optional overrides for the tightening-side bearing surface
+ * (e.g. washer OD/ID or nut bearing diameter). Defaults to screw head geometry.
  */
 export function calculateTorque(
   preload: number,
   screw: ScrewData,
-  friction: FrictionPair
+  friction: FrictionPair,
+  bearingOD?: number,
+  bearingID?: number
 ): number {
-  const headFrictionTerm = screw.headDiameter > 0
-    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
-    : 0;
+  const Dkm = computeDkm(screw, bearingOD, bearingID);
   const T = preload * (
     VDI_PITCH_FACTOR * screw.pitch +
     VDI_THREAD_FRICTION_FACTOR * screw.d2 * friction.muThread +
-    headFrictionTerm
+    (Dkm / 2) * friction.muHead
   );
   return T / 1000; // Convert N·mm to N·m
 }
 
 /**
- * Inverse: given torque, find preload
+ * Inverse: given torque, find preload.
+ * bearingOD/bearingID must match what was used for the forward calculation.
  */
 export function calculatePreload(
   torque: number,
   screw: ScrewData,
-  friction: FrictionPair
+  friction: FrictionPair,
+  bearingOD?: number,
+  bearingID?: number
 ): number {
-  const headFrictionTerm = screw.headDiameter > 0
-    ? ((screw.headDiameter + screw.holeDiameter) / 4) * friction.muHead
-    : 0;
+  const Dkm = computeDkm(screw, bearingOD, bearingID);
   const factor = VDI_PITCH_FACTOR * screw.pitch +
     VDI_THREAD_FRICTION_FACTOR * screw.d2 * friction.muThread +
-    headFrictionTerm;
+    (Dkm / 2) * friction.muHead;
   return (torque * 1000) / factor; // torque in Nm → N·mm, result in N
 }
 
@@ -67,7 +86,7 @@ export interface BoltStressResult {
   axialStress: number;      // MPa
   torsionalStress: number;  // MPa
   vonMisesStress: number;   // MPa
-  proofStress: number;      // MPa
+  Rp02: number;      // MPa
   utilization: number;      // %
 }
 
@@ -105,10 +124,10 @@ export function calculateBoltStress(
   const vonMisesStress = Math.sqrt(
     axialStress * axialStress + 3 * torsionalStress * torsionalStress
   );
-  const proofStress = grade.proofStress;
-  const utilization = (vonMisesStress / proofStress) * 100;
+  const Rp02 = grade.Rp02;
+  const utilization = (vonMisesStress / Rp02) * 100;
 
-  return { axialStress, torsionalStress, vonMisesStress, proofStress, utilization };
+  return { axialStress, torsionalStress, vonMisesStress, Rp02, utilization };
 }
 
 /**

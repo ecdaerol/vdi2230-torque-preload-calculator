@@ -26,6 +26,8 @@ interface Props {
   headWasher: WasherData | null;
   nutWasher: WasherData | null;
   nut: NutData | null;
+  bearingOD?: number;  // tightening-side bearing surface OD (washer/nut override)
+  bearingID?: number;  // tightening-side bearing surface ID (washer/nut override)
 }
 
 function safe(n: number): string {
@@ -56,7 +58,7 @@ function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' })
   );
 }
 
-export default function Results({ utilization, preload, torque, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial, assemblyType, headWasher, nutWasher, nut }: Props) {
+export default function Results({ utilization, preload, torque, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, useImperial, assemblyType, headWasher, nutWasher, nut, bearingOD, bearingID }: Props) {
   if (!screw || utilization <= 0) {
     return (
       <div className="card p-5">
@@ -65,8 +67,8 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
     );
   }
 
-  // --- Validation: preload must be positive ---
-  if (preload <= 0) {
+  // --- Validation: preload must be positive and finite ---
+  if (preload <= 0 || !isFinite(preload)) {
     return (
       <div className="card p-5">
         <p className="text-center text-sm font-medium" style={{ color: 'var(--danger)' }}>
@@ -74,6 +76,47 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
         </p>
       </div>
     );
+  }
+
+  // --- Fail closed: if torque is NaN/Infinity, something is wrong ---
+  if (!isFinite(torque) || torque < 0) {
+    return (
+      <div className="card p-5">
+        <p className="text-center text-sm font-medium" style={{ color: 'var(--danger)' }}>
+          Invalid calculation result — check inputs (friction, geometry).
+        </p>
+      </div>
+    );
+  }
+
+  // --- Input validation warnings ---
+  const warnings: string[] = [];
+  if (utilization > 100) {
+    warnings.push('Utilization exceeds 100% — bolt proof load will be exceeded during assembly.');
+  } else if (utilization > 90) {
+    warnings.push('Utilization above 90% — limited margin for friction scatter and embedding losses.');
+  }
+  if (friction.muThread < 0.04 || friction.muHead < 0.04) {
+    warnings.push('Friction coefficient below 0.04 is uncommon — verify lubrication conditions.');
+  }
+  if (engagementLength > 0 && screw && engagementLength < screw.pitch) {
+    warnings.push(`Thread engagement (${engagementLength} mm) is less than 1× pitch (${screw.pitch} mm) — insufficient thread contact.`);
+  }
+  if (clampLength > 0 && clampLength < 1) {
+    warnings.push('Clamp length below 1 mm — verify joint geometry.');
+  }
+  if (screw && clampLength > screw.d * 10) {
+    warnings.push(`Clamp length (${clampLength} mm) is very long relative to bolt diameter — check for bending loads.`);
+  }
+  // Fastener-type-specific physics disclaimers (review findings #4, #5)
+  if (screw && !screw.hasHead) {
+    warnings.push('Set screw selected — the VDI 2230 clamped-joint model does not apply. Torque shown is thread friction only; joint stiffness and surface pressure results are not meaningful.');
+  }
+  if (screw?.shoulderDiameter) {
+    warnings.push('Shoulder bolt — stress area and stiffness may differ if the clamp span is on the shoulder rather than the threaded section. Results assume threaded-section properties.');
+  }
+  if (screw?.isCountersunk) {
+    warnings.push('Countersunk head — bearing geometry is conical, not a flat annulus. Surface pressure and torque results are approximate.');
   }
 
   // Actual von Mises utilization (includes torsional stress)
@@ -101,13 +144,17 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
   // --- Thread stripping (skip gracefully if engagementLength <= 0) ---
   let ts: ThreadStrippingResult | null = null;
   if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
-    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength);
+    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade);
   }
 
   // --- Joint stiffness (skip gracefully if clampLength <= 0) ---
+  // Pass tapped/bottom material as second layer when available (review finding #2)
   let js: JointStiffnessResult | null = null;
   if (clampedMaterial && clampLength > 0) {
-    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name);
+    js = calculateJointStiffness(
+      preload, screw, clampedMaterial, clampLength, grade.name,
+      tappedMaterial ?? undefined
+    );
   }
 
   // Torque range using per-friction-pair scatter band (VDI 2230)
@@ -116,12 +163,12 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
     ...friction,
     muThread: friction.muThread * (1 - scatter),
     muHead: friction.muHead * (1 - scatter),
-  });
+  }, bearingOD, bearingID);
   const torqueMax = calculateTorque(preload, screw, {
     ...friction,
     muThread: friction.muThread * (1 + scatter),
     muHead: friction.muHead * (1 + scatter),
-  });
+  }, bearingOD, bearingID);
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
@@ -155,6 +202,18 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
           </div>
         </div>
       </div>
+
+      {/* Input validation warnings */}
+      {warnings.length > 0 && (
+        <div className="card p-4" style={{ backgroundColor: '#fff3e0', borderLeft: '4px solid #fb8c00' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>
+            Warnings
+          </h3>
+          <ul className="text-sm list-disc list-inside space-y-1" style={{ color: '#4e342e' }}>
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {/* Polymer creep warning */}
       {(clampedMaterial?.category === 'polymer' || clampedMaterial?.category === 'composite' ||
@@ -224,7 +283,7 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
               </div>
             </div>
             <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
-              Rp0.2 = {grade.proofStress} MPa &middot; Target: {utilization}% (axial) &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)
+              Rp0.2 = {grade.Rp02} MPa &middot; Target: {utilization}% (axial) &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)
             </div>
             {boltStress.utilization > 100 && (
               <div className="mt-2 text-xs font-semibold" style={{ color: 'var(--danger)' }}>
@@ -334,6 +393,9 @@ export default function Results({ utilization, preload, torque, screw, clampedMa
                 <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Min. Engagement</div>
                 <div className="text-sm font-mono font-semibold">{safe(ts.minEngagementLength)} mm</div>
               </div>
+            </div>
+            <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>
+              Critical mode: {ts.criticalMode === 'internal' ? 'nut/tapped hole thread' : 'bolt thread'} &middot; C = {safeN(ts.engagementFactor, 3)}
             </div>
             {ts.status !== 'ok' && (
               <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
