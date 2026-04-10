@@ -1,3 +1,5 @@
+import "./index.css";
+
 // Package entry point — re-exports the public API.
 // This file only re-exports; it does not modify any source modules.
 
