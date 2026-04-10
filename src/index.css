@@ -126,3 +126,46 @@
     margin-top: 4pt;
   }
 }
+
+/* Dark embed mode — matches portfolio dark theme */
+.embed-dark {
+  --bg: #000000;
+  --panel: rgba(255, 255, 255, 0.03);
+  --ink: #f1f5f9;
+  --muted: rgba(255, 255, 255, 0.5);
+  --line: rgba(255, 255, 255, 0.06);
+  --brand: #a855f7;
+  --brand-2: #9333ea;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+
+.embed-dark select,
+.embed-dark input[type="number"],
+.embed-dark input[type="text"],
+.embed-dark details {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.embed-dark select option,
+.embed-dark select optgroup {
+  background-color: #1e1e1e;
+  color: #f1f5f9;
+}
+
+.embed-dark .card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.embed-dark summary {
+  color: #f1f5f9 !important;
+}
+
+.embed-dark details {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
