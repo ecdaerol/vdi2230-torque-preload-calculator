@@ -15,6 +15,7 @@ const M10_pan = screwDatabase.find(s => s.size === 'M10' && s.standard === 'ISO 
 const M4_pan  = screwDatabase.find(s => s.size === 'M4'  && s.standard === 'ISO 14580')!;
 const M4_set  = screwDatabase.find(s => s.size === 'M4'  && s.standard === 'ISO 4026')!;
 const M6_pan  = screwDatabase.find(s => s.size === 'M6'  && s.standard === 'ISO 14580')!;
+const quarter20 = screwDatabase.find(s => s.size === '1/4-20' && s.standard === 'ASME B18.3')!;
 
 const steelDry     = frictionDatabase.find(f => f.name === 'Steel on Steel' && f.condition === 'Dry')!;
 const steelOiled   = frictionDatabase.find(f => f.name === 'Steel on Steel' && f.condition === 'Oiled')!;
@@ -66,6 +67,12 @@ describe('calculateTorque', () => {
     const tHeaded  = calculateTorque(5000, M4_pan, steelDry);
     expect(tSet).toBeLessThan(tHeaded);
   });
+
+  it('inch UNC socket screw produces finite torque in a practical range', () => {
+    const torque = calculateTorque(5000, quarter20, steelDry);
+    expect(torque).toBeGreaterThan(4);
+    expect(torque).toBeLessThan(12);
+  });
 });
 
 describe('calculatePreload — inverse of calculateTorque', () => {
@@ -84,6 +91,12 @@ describe('calculatePreload — inverse of calculateTorque', () => {
   it('round-trip for M10 with stainless friction', () => {
     const preload = 25000;
     const recovered = calculatePreload(calculateTorque(preload, M10_pan, stainlessDry), M10_pan, stainlessDry);
+    expect(recovered).toBeCloseTo(preload, 0);
+  });
+
+  it('round-trip for 1/4-20 UNC socket cap screw', () => {
+    const preload = 6000;
+    const recovered = calculatePreload(calculateTorque(preload, quarter20, steelDry), quarter20, steelDry);
     expect(recovered).toBeCloseTo(preload, 0);
   });
 });

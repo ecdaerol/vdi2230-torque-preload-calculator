@@ -4,11 +4,11 @@ import { FrictionPair } from '../data/friction';
 import { WasherData } from '../data/washers';
 import { NutData } from '../data/nuts';
 import { AssemblyType } from './AssemblyDiagram';
-import { BoltGrade, calculateTorque } from '../calc/torque';
-import { calculateBoltStress, BoltStressResult } from '../calc/torque';
+import { BoltGrade, calculateTorque, calculateBoltStress, BoltStressResult } from '../calc/torque';
 import { calculateSurfacePressure, SurfacePressureResult } from '../calc/surfacePressure';
 import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadStripping';
 import { calculateJointStiffness, JointStiffnessResult } from '../calc/jointStiffness';
+import { TighteningMethod, combineScatter, calculateServicePreload } from '../calc/preloadRealism';
 
 interface Props {
   inputMode: 'utilization' | 'torque' | 'preload';
@@ -30,37 +30,60 @@ interface Props {
   nut: NutData | null;
   bearingOD?: number;
   bearingID?: number;
+  tighteningMethod: TighteningMethod;
+  relaxationLossPct: number;
+  settlementMicrons: number;
 }
 
-function safe(n: number): string {
-  if (!isFinite(n) || isNaN(n)) return '\u2014';
-  return n.toFixed(1);
+function safe(value: number): string {
+  if (!isFinite(value) || Number.isNaN(value)) return '—';
+  return value.toFixed(1);
 }
 
-function safeN(n: number, decimals: number): string {
-  if (!isFinite(n) || isNaN(n)) return '\u2014';
-  return n.toFixed(decimals);
+function safeN(value: number, decimals: number): string {
+  if (!isFinite(value) || Number.isNaN(value)) return '—';
+  return value.toFixed(decimals);
 }
 
 function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' }) {
   const styles: Record<string, React.CSSProperties> = {
-    ok:      { backgroundColor: '#e8f5e9', color: '#067647' },
+    ok: { backgroundColor: '#e8f5e9', color: '#067647' },
     warning: { backgroundColor: '#fff3e0', color: '#fb8c00' },
-    danger:  { backgroundColor: '#fbe9e7', color: '#d52b1e' },
-    na:      { backgroundColor: '#f5f5f5', color: '#666666' },
+    danger: { backgroundColor: '#fbe9e7', color: '#d52b1e' },
+    na: { backgroundColor: '#f5f5f5', color: '#666666' },
   };
   const labels = { ok: 'OK', warning: 'WARNING', danger: 'DANGER', na: 'N/A' };
   return (
-    <span
-      className="inline-block px-2 py-0.5 rounded-full text-xs font-bold"
-      style={styles[status]}
-    >
+    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold" style={styles[status]}>
       {labels[status]}
     </span>
   );
 }
 
-export default function Results({ inputMode, utilization, preload, torque, screw, clampedMaterial, tappedMaterial, friction, grade, engagementLength, clampLength, clampLengthSplit, useImperial, assemblyType, headWasher, nutWasher, nut, bearingOD, bearingID }: Props) {
+export default function Results({
+  inputMode,
+  utilization,
+  preload,
+  torque,
+  screw,
+  clampedMaterial,
+  tappedMaterial,
+  friction,
+  grade,
+  engagementLength,
+  clampLength,
+  clampLengthSplit,
+  useImperial,
+  assemblyType,
+  headWasher,
+  nutWasher,
+  nut,
+  bearingOD,
+  bearingID,
+  tighteningMethod,
+  relaxationLossPct,
+  settlementMicrons,
+}: Props) {
   if (!screw) {
     return (
       <div className="card p-5">
@@ -69,7 +92,6 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     );
   }
 
-  // --- Validation: preload must be positive ---
   if (preload <= 0) {
     const emptyStateMessage = inputMode === 'utilization'
       ? 'Set torque percentage above 0%'
@@ -86,8 +108,7 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     );
   }
 
-  // --- NaN/Infinity guard ---
-  if (!isFinite(preload) || isNaN(preload) || !isFinite(torque) || isNaN(torque)) {
+  if (!isFinite(preload) || Number.isNaN(preload) || !isFinite(torque) || Number.isNaN(torque)) {
     return (
       <div className="card p-5">
         <p className="text-center text-sm font-medium" style={{ color: 'var(--danger)' }}>
@@ -97,12 +118,8 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     );
   }
 
-  // Actual von Mises utilization (includes torsional stress)
-  const boltStress: BoltStressResult | null = (screw && preload > 0)
-    ? calculateBoltStress(preload, screw, grade, friction)
-    : null;
+  const boltStress: BoltStressResult | null = calculateBoltStress(preload, screw, grade, friction);
 
-  // --- Surface pressure (head side) ---
   const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
   let sp: SurfacePressureResult | null = null;
   if (hasSurfacePressure) {
@@ -111,7 +128,6 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     sp = calculateSurfacePressure(preload, screw, clampedMaterial!, headBearingOD, headBearingID);
   }
 
-  // --- Surface pressure (nut side) — only for through-nut ---
   let spNut: SurfacePressureResult | null = null;
   if (assemblyType === 'through-nut' && tappedMaterial && nut) {
     const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
@@ -119,19 +135,16 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     spNut = calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
   }
 
-  // --- Thread stripping (skip gracefully if engagementLength <= 0) ---
   let ts: ThreadStrippingResult | null = null;
   if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
     ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade);
   }
 
-  // --- Joint stiffness (skip gracefully if clampLength <= 0) ---
   let js: JointStiffnessResult | null = null;
   if (clampedMaterial && clampLength > 0) {
     js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
   }
 
-  // Torque range using per-friction-pair scatter band (VDI 2230)
   const scatter = friction.scatter ?? 0.20;
   const torqueMin = calculateTorque(preload, screw, {
     ...friction,
@@ -144,170 +157,232 @@ export default function Results({ inputMode, utilization, preload, torque, screw
     muHead: friction.muHead * (1 + scatter),
   }, bearingOD, bearingID);
 
+  const totalScatter = combineScatter(friction.scatter, tighteningMethod.processScatter);
+  const servicePreload = calculateServicePreload(
+    torque,
+    screw,
+    friction,
+    totalScatter,
+    relaxationLossPct,
+    settlementMicrons,
+    js,
+    bearingOD,
+    bearingID,
+  );
+
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
   const forceUnit = useImperial ? 'lbf' : 'N';
-  const torqueUnit = useImperial ? 'lb\u00b7ft' : 'N\u00b7m';
+  const torqueUnit = useImperial ? 'lb·ft' : 'N·m';
   const pressureUnit = 'MPa';
 
-  const safetyColor = (sf: number) =>
-    sf < 1 ? 'var(--danger)' : sf < 1.5 ? 'var(--warn)' : 'var(--ok)';
+  const safetyColor = (sf: number) => (sf < 1 ? 'var(--danger)' : sf < 1.5 ? 'var(--warn)' : 'var(--ok)');
 
-  // --- Validation warnings ---
+  const serviceLossPercent = servicePreload.initial.preloadNominal > 0
+    ? 100 * (1 - servicePreload.service.preloadNominal / servicePreload.initial.preloadNominal)
+    : 0;
+
+  const creepSensitive = [clampedMaterial, tappedMaterial]
+    .filter((material): material is MaterialData => !!material)
+    .some((material) => material.creepRisk !== 'low');
+
   const warnings: string[] = [];
-  if (boltStress && boltStress.utilization > 90) {
+  if (boltStress.utilization > 90) {
     warnings.push('Bolt utilization exceeds 90% — consider reducing preload or upgrading grade.');
   }
   if (friction.muThread < 0.04 || friction.muHead < 0.04) {
     warnings.push('Friction coefficient below 0.04 — results may be unreliable. Verify lubrication conditions.');
   }
   if (engagementLength > 0 && engagementLength < screw.pitch) {
-    warnings.push(`Thread engagement (${engagementLength.toFixed(1)} mm) is less than one pitch (${screw.pitch} mm) — stripping risk is very high.`);
+    warnings.push(`Thread engagement (${engagementLength.toFixed(1)} mm) is less than one pitch (${screw.pitch.toFixed(2)} mm) — stripping risk is very high.`);
   }
   if (clampLength > 0 && clampLength < 1) {
-    warnings.push('Clamp length is less than 1 mm — joint stiffness results may be inaccurate.');
+    warnings.push('Clamp length is less than 1 mm — joint stiffness and settlement results may be inaccurate.');
   }
   if (clampLength > 0 && screw.d > 0 && clampLength > 10 * screw.d) {
-    warnings.push(`Clamp length (${clampLength} mm) is very long relative to bolt diameter (${screw.d} mm) — verify setup.`);
+    warnings.push(`Clamp length (${clampLength.toFixed(1)} mm) is very long relative to bolt diameter (${screw.d.toFixed(1)} mm) — verify setup.`);
+  }
+  if (totalScatter > 0.2) {
+    warnings.push(`Expected preload scatter is wide (±${Math.round(totalScatter * 100)}%) — calibrate the joint condition or tighten with a higher-control method if preload repeatability matters.`);
+  }
+  if (serviceLossPercent > 20) {
+    warnings.push(`Estimated service preload drops by about ${safeN(serviceLossPercent, 0)}% after relaxation/settlement — consider washers, larger clamp area, or lower-creep materials.`);
+  }
+  if (settlementMicrons > 0 && !js) {
+    warnings.push('Settlement loss could not be translated into force because clamp stiffness is unavailable — select clamp material and clamp length for a better estimate.');
   }
 
-  // --- Disclaimers for special configurations ---
   const disclaimers: string[] = [];
   if (!screw.hasHead) {
     disclaimers.push('Set screw: no head bearing surface. Surface pressure and head torque terms are not applicable.');
   }
   if (screw.isCountersunk) {
-    disclaimers.push('Countersunk head: flat head-bearing pressure is not shown because the contact geometry is different from a standard bearing face.');
+    disclaimers.push('Countersunk head: flat head-bearing pressure is not shown because the contact geometry differs from a standard bearing face.');
+  }
+  if (screw.partiallyThreaded) {
+    disclaimers.push('Partially threaded bolt: tensile-stress-area and clamp model are simplified and do not separately model unthreaded shank stretch.');
   }
 
   return (
     <div className="space-y-4">
-      {/* Validation warnings */}
       {warnings.length > 0 && (
         <div className="card p-4" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
           <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Warnings</h3>
           <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
-            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {warnings.map((warning, index) => <li key={index}>{warning}</li>)}
           </ul>
         </div>
       )}
 
-      {/* Disclaimers */}
       {disclaimers.length > 0 && (
         <div className="card p-4" style={{ backgroundColor: '#f3f4f6', borderLeft: '4px solid #9ca3af' }}>
           <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#374151' }}>Notes</h3>
           <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#374151' }}>
-            {disclaimers.map((d, i) => <li key={i}>{d}</li>)}
+            {disclaimers.map((disclaimer, index) => <li key={index}>{disclaimer}</li>)}
           </ul>
         </div>
       )}
 
-      {/* Primary result */}
       <div className="card p-5">
-        <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Results</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Torque & Preload</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Tightening Torque</div>
             <div className="text-2xl font-bold font-mono" style={{ color: 'var(--brand)' }}>
               {safeN(torque * Nmto, 3)} <span className="text-sm">{torqueUnit}</span>
             </div>
             <div className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>
-              Range: {safeN(torqueMin * Nmto, 3)} – {safeN(torqueMax * Nmto, 3)} {torqueUnit} (±{Math.round(scatter * 100)}% friction scatter)
+              Torque for nominal preload: {safeN(torqueMin * Nmto, 3)} – {safeN(torqueMax * Nmto, 3)} {torqueUnit}
             </div>
           </div>
           <div>
-            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Preload Force</div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Initial Preload</div>
             <div className="text-2xl font-bold font-mono" style={{ color: 'var(--brand)' }}>
-              {safeN(preload * Nto, 0)} <span className="text-sm">{forceUnit}</span>
+              {safeN(servicePreload.initial.preloadNominal * Nto, 0)} <span className="text-sm">{forceUnit}</span>
+            </div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>
+              Expected band: {safeN(servicePreload.initial.preloadMin * Nto, 0)} – {safeN(servicePreload.initial.preloadMax * Nto, 0)} {forceUnit}
+            </div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Service Preload</div>
+            <div className="text-2xl font-bold font-mono" style={{ color: serviceLossPercent > 20 ? 'var(--warn)' : 'var(--brand)' }}>
+              {safeN(servicePreload.service.preloadNominal * Nto, 0)} <span className="text-sm">{forceUnit}</span>
+            </div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>
+              After losses: {safeN(servicePreload.service.preloadMin * Nto, 0)} – {safeN(servicePreload.service.preloadMax * Nto, 0)} {forceUnit}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Polymer creep warning */}
-      {(clampedMaterial?.category === 'polymer' || clampedMaterial?.category === 'composite' ||
-        tappedMaterial?.category === 'polymer' || tappedMaterial?.category === 'composite') && (
+      <div className="card p-5">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>Preload Realism</h3>
+          <StatusBadge status={serviceLossPercent > 20 ? 'warning' : 'ok'} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Tightening method</div>
+            <div className="text-sm font-semibold">{tighteningMethod.label}</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Combined scatter</div>
+            <div className="text-sm font-mono font-semibold">±{safeN(totalScatter * 100, 1)}%</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Relaxation loss</div>
+            <div className="text-sm font-mono font-semibold">{safeN(servicePreload.relaxationLoss * Nto, 0)} {forceUnit}</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Settlement loss</div>
+            <div className="text-sm font-mono font-semibold">{safeN(servicePreload.embeddingLoss * Nto, 0)} {forceUnit}</div>
+          </div>
+        </div>
+        <div className="text-[10px] space-y-1" style={{ color: 'var(--muted)' }}>
+          <div>{tighteningMethod.notes}</div>
+          <div>
+            Inputs: preset scatter ±{Math.round(friction.scatter * 100)}% + method scatter ±{Math.round(tighteningMethod.processScatter * 100)}% · relaxation allowance {safeN(relaxationLossPct, 0)}% · settlement {safeN(settlementMicrons, 0)} μm
+          </div>
+          <div>
+            {servicePreload.equivalentStiffness > 0
+              ? `Equivalent joint stiffness for settlement loss: ${safeN(servicePreload.equivalentStiffness / 1000, 3)} kN/mm`
+              : 'Settlement loss uses the clamp model when clamp material and clamp length are available.'}
+          </div>
+        </div>
+      </div>
+
+      {creepSensitive && (
         <div className="card p-5" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
           <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>
-            Polymer Creep Warning
+            Creep / Relaxation Watch
           </h3>
           <p className="text-sm mb-2" style={{ color: '#4e342e' }}>
-            PA12/PEEK and similar polymers lose 10–30% of preload over time due to creep and stress relaxation.
+            One or more selected materials are creep-sensitive. Service preload may continue to fall after initial settling, especially in polymers and printed parts.
           </p>
-          <p className="text-sm font-medium mb-1" style={{ color: '#4e342e' }}>Consider:</p>
           <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
-            <li>Re-torquing after 24h settling period</li>
-            <li>Designing for lower initial utilization (50-70%)</li>
-            <li>Using a washer to distribute load</li>
-            <li>Service preload ≈ 70-85% of initial preload</li>
+            <li>Consider larger washers or support washers to reduce local compression.</li>
+            <li>Use lower initial utilization if long-term preload retention matters.</li>
+            <li>For production designs, validate preload retention with a time/temperature test.</li>
           </ul>
         </div>
       )}
 
-      {/* Bolt stress (von Mises) */}
       <div className="card p-5">
         <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>
           Bolt Stress — {grade.name}
         </h3>
-        {boltStress && (
-          <>
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&sigma; axial</div>
-                <div className="text-sm font-mono font-semibold">{safe(boltStress.axialStress)} MPa</div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&tau; torsion</div>
-                <div className="text-sm font-mono font-semibold">{safe(boltStress.torsionalStress)} MPa</div>
-              </div>
-              <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>&sigma; von Mises</div>
-                <div className="text-sm font-mono font-bold" style={{ color: boltStress.utilization > 100 ? 'var(--danger)' : boltStress.utilization > 90 ? 'var(--warn)' : 'var(--ok)' }}>
-                  {safe(boltStress.vonMisesStress)} MPa
-                </div>
-              </div>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>σ axial</div>
+            <div className="text-sm font-mono font-semibold">{safe(boltStress.axialStress)} MPa</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>τ torsion</div>
+            <div className="text-sm font-mono font-semibold">{safe(boltStress.torsionalStress)} MPa</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>σ von Mises</div>
+            <div className="text-sm font-mono font-bold" style={{ color: boltStress.utilization > 100 ? 'var(--danger)' : boltStress.utilization > 90 ? 'var(--warn)' : 'var(--ok)' }}>
+              {safe(boltStress.vonMisesStress)} MPa
             </div>
-            {/* Utilization bar */}
-            <div className="mb-1">
-              <div className="flex justify-between text-[9px] font-semibold uppercase tracking-wider mb-1">
-                <span style={{ color: 'var(--muted)' }}>Von Mises Utilization</span>
-                <span className="font-mono" style={{ color: boltStress.utilization > 100 ? 'var(--danger)' : boltStress.utilization > 90 ? 'var(--warn)' : 'var(--ok)' }}>
-                  {safe(boltStress.utilization)}%
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full" style={{ backgroundColor: '#eeeeee' }}>
-                <div
-                  className="h-2 rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(boltStress.utilization, 100)}%`,
-                    background: boltStress.utilization > 100
-                      ? 'linear-gradient(90deg, #ef5350, #d50000)'
-                      : boltStress.utilization > 90
-                      ? 'linear-gradient(90deg, #fb8c00, #e65100)'
-                      : boltStress.utilization > 70
-                      ? 'linear-gradient(90deg, #66bb6a, #43a047)'
-                      : 'linear-gradient(90deg, #66bb6a, #43a047)'
-                  }}
-                />
-              </div>
-            </div>
-            <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
-              {inputMode === 'utilization'
-                ? <>Rp₀.₂ = {grade.Rp02} MPa &middot; Selected torque level: {utilization}% &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>
-                : inputMode === 'torque'
-                  ? <>Rp₀.₂ = {grade.Rp02} MPa &middot; Derived from entered torque &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>
-                  : <>Rp₀.₂ = {grade.Rp02} MPa &middot; Derived from entered preload &rarr; Actual: {safe(boltStress.utilization)}% (von Mises)</>}
-            </div>
-            {boltStress.utilization > 100 && (
-              <div className="mt-2 text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                Bolt proof load exceeded! Reduce utilization or use a higher grade.
-              </div>
-            )}
-          </>
+          </div>
+        </div>
+        <div className="mb-1">
+          <div className="flex justify-between text-[9px] font-semibold uppercase tracking-wider mb-1">
+            <span style={{ color: 'var(--muted)' }}>Von Mises Utilization</span>
+            <span className="font-mono" style={{ color: boltStress.utilization > 100 ? 'var(--danger)' : boltStress.utilization > 90 ? 'var(--warn)' : 'var(--ok)' }}>
+              {safe(boltStress.utilization)}%
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full" style={{ backgroundColor: '#eeeeee' }}>
+            <div
+              className="h-2 rounded-full transition-all"
+              style={{
+                width: `${Math.min(boltStress.utilization, 100)}%`,
+                background: boltStress.utilization > 100
+                  ? 'linear-gradient(90deg, #ef5350, #d50000)'
+                  : boltStress.utilization > 90
+                    ? 'linear-gradient(90deg, #fb8c00, #e65100)'
+                    : 'linear-gradient(90deg, #66bb6a, #43a047)',
+              }}
+            />
+          </div>
+        </div>
+        <div className="text-[10px]" style={{ color: 'var(--muted)' }}>
+          {inputMode === 'utilization'
+            ? <>Rp₀.₂ = {grade.Rp02} MPa · Selected torque level: {utilization}% → Actual: {safe(boltStress.utilization)}% (von Mises)</>
+            : inputMode === 'torque'
+              ? <>Rp₀.₂ = {grade.Rp02} MPa · Derived from entered torque → Actual: {safe(boltStress.utilization)}% (von Mises)</>
+              : <>Rp₀.₂ = {grade.Rp02} MPa · Derived from entered preload → Actual: {safe(boltStress.utilization)}% (von Mises)</>}
+        </div>
+        {boltStress.utilization > 100 && (
+          <div className="mt-2 text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+            Bolt proof load exceeded! Reduce utilization or use a higher grade.
+          </div>
         )}
       </div>
 
-      {/* Surface pressure — head side */}
       <div className="card p-5">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
@@ -331,7 +406,7 @@ export default function Results({ inputMode, utilization, preload, torque, screw
                 <div className="text-sm font-mono font-semibold">{safe(sp!.pressure)} {pressureUnit}</div>
               </div>
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (&sigma;y)</div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (σy)</div>
                 <div className="text-sm font-mono font-semibold">{safe(sp!.limit)} {pressureUnit}</div>
               </div>
               <div>
@@ -346,7 +421,6 @@ export default function Results({ inputMode, utilization, preload, torque, screw
         )}
       </div>
 
-      {/* Surface pressure — nut side (through-nut only) */}
       {assemblyType === 'through-nut' && (
         <div className="card p-5">
           <div className="flex justify-between items-center mb-3">
@@ -365,7 +439,7 @@ export default function Results({ inputMode, utilization, preload, torque, screw
                   <div className="text-sm font-mono font-semibold">{safe(spNut.pressure)} {pressureUnit}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (&sigma;y)</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Limit (σy)</div>
                   <div className="text-sm font-mono font-semibold">{safe(spNut.limit)} {pressureUnit}</div>
                 </div>
                 <div>
@@ -381,7 +455,6 @@ export default function Results({ inputMode, utilization, preload, torque, screw
         </div>
       )}
 
-      {/* Thread stripping */}
       <div className="card p-5">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
@@ -414,19 +487,18 @@ export default function Results({ inputMode, utilization, preload, torque, screw
             <div className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
               Critical mode: <span className="font-semibold">{ts.criticalMode === 'internal' ? 'Internal (nut/tapped material)' : 'External (bolt thread)'}</span>
               {ts.externalStrippingForce !== Infinity && (
-                <> &middot; Internal: {safeN(ts.internalStrippingForce * Nto, 0)} {forceUnit} &middot; External: {safeN(ts.externalStrippingForce * Nto, 0)} {forceUnit}</>
+                <> · Internal: {safeN(ts.internalStrippingForce * Nto, 0)} {forceUnit} · External: {safeN(ts.externalStrippingForce * Nto, 0)} {forceUnit}</>
               )}
             </div>
             {ts.status !== 'ok' && (
               <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
-                Increase engagement length to &ge; {safe(ts.minEngagementLength)} mm for SF &ge; 1.5
+                Increase engagement length to ≥ {safe(ts.minEngagementLength)} mm for SF ≥ 1.5
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Joint stiffness summary */}
       {js && (
         <div className="card p-5">
           <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Joint Stiffness</h3>

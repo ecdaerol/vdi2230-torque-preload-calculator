@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="Torque Preload Calculator"
+APP_NAME="Fastener Joint Calculator"
 OUTPUT_PATH="${1:-$HOME/Desktop/${APP_NAME}.app}"
 DIST_DIR="$REPO_ROOT/dist"
 SOURCE_ICON="$REPO_ROOT/public/app-icon.png"
@@ -60,7 +60,7 @@ cat > "$OUTPUT_PATH/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>app.icns</string>
   <key>CFBundleIdentifier</key>
-  <string>io.github.ecdaerol.vdi2230-torque-preload-calculator</string>
+  <string>io.github.ecdaerol.fastener-joint-calculator</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

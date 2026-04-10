@@ -49,16 +49,18 @@ function getMaterialStroke(mat: MaterialData | null): string {
 // Screw head classification
 // ---------------------------------------------------------------------------
 
-type HeadStyle = 'pan' | 'countersunk' | 'socket' | 'set' | 'shoulder';
+type HeadStyle = 'pan' | 'button' | 'hex' | 'countersunk' | 'socket' | 'set' | 'shoulder';
 
 function classifyHead(screw: ScrewData): HeadStyle {
   const std = screw.standard.toLowerCase();
   const typ = screw.type.toLowerCase();
   if (std.includes('4026') || typ.includes('set screw') || typ.includes('grub')) return 'set';
   if (std.includes('7379') || typ.includes('shoulder')) return 'shoulder';
+  if (typ.includes('hex head') || typ.includes('hex cap') || typ.includes('hex bolt')) return 'hex';
+  if (typ.includes('button')) return 'button';
   if (std.includes('4762') || typ.includes('socket head') || typ.includes('cap screw')) return 'socket';
   if (std.includes('14581') || typ.includes('countersunk') || typ.includes('flat head')) return 'countersunk';
-  return 'pan'; // ISO 14580, 14583, and fallback
+  return 'pan';
 }
 
 // ---------------------------------------------------------------------------
@@ -123,16 +125,24 @@ export default function AssemblyDiagram({
       ? 26
       : headStyle === 'shoulder'
         ? 28
-        : headStyle === 'set'
-          ? 0
-          : 24;
+        : headStyle === 'hex'
+          ? 30
+          : headStyle === 'button'
+            ? 26
+            : headStyle === 'set'
+              ? 0
+              : 24;
   const headH = headStyle === 'countersunk'
     ? 34
     : headStyle === 'pan'
       ? 20
-      : headStyle === 'socket' || headStyle === 'shoulder'
-        ? 24
-        : 0;
+      : headStyle === 'button'
+        ? 16
+        : headStyle === 'hex'
+          ? 18
+          : headStyle === 'socket' || headStyle === 'shoulder'
+            ? 24
+            : 0;
 
   const hwTh = headWasher ? 4 : 0;
   const hwR = headWasher ? 34 : 0;
@@ -246,8 +256,46 @@ export default function AssemblyDiagram({
           />
         );
       }
+      case 'button': {
+        const domeH = headH * 0.55;
+        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        return (
+          <path
+            d={`
+              M ${cx - headR} ${hTop + headH}
+              L ${cx - headR} ${hTop + domeH}
+              Q ${cx - headR * 0.95} ${hTop}, ${cx} ${hTop}
+              Q ${cx + headR * 0.95} ${hTop}, ${cx + headR} ${hTop + domeH}
+              L ${cx + headR} ${hTop + headH}
+              Z
+            `}
+            fill={SCREW_FILL}
+            stroke={SCREW_STROKE}
+            strokeWidth="1"
+          />
+        );
+      }
+      case 'hex': {
+        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const inset = headR * 0.18;
+        return (
+          <path
+            d={`
+              M ${cx - headR + inset} ${hTop}
+              L ${cx + headR - inset} ${hTop}
+              L ${cx + headR} ${hTop + headH * 0.35}
+              L ${cx + headR - inset} ${hTop + headH}
+              L ${cx - headR + inset} ${hTop + headH}
+              L ${cx - headR} ${hTop + headH * 0.35}
+              Z
+            `}
+            fill={SCREW_FILL}
+            stroke={SCREW_STROKE}
+            strokeWidth="1"
+          />
+        );
+      }
       case 'countersunk': {
-        // Cone recesses into clamped part — top flush with clamped surface
         const coneBottom = clampTop + headH;
         return (
           <path
