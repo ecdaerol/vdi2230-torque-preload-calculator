@@ -17,42 +17,76 @@ function getBoltEModulus(gradeName: string): number {
   return 210000; // MPa — carbon/alloy steel
 }
 
+/**
+ * VDI 2230 cone stiffness for a single material layer.
+ * Formula: k = (Ec * dw * PI * tan(alpha)) / (2 * ln(numerator / denominator))
+ * where numerator = (DA - dh) * (dw + dh)
+ *       denominator = (DA + dh) * (dw - dh)
+ */
+function coneStiffness(
+  Ec: number,      // MPa
+  dw: number,      // bearing diameter (mm)
+  dh: number,      // hole diameter (mm)
+  length: number   // layer thickness (mm)
+): number {
+  const alpha = Math.PI / 6; // 30° half-angle
+  const DA = dw + length * Math.tan(alpha);
+  const numerator = (DA - dh) * (dw + dh);
+  const denominator = (DA + dh) * (dw - dh);
+
+  if (numerator > 0 && denominator > 0 && numerator / denominator > 0) {
+    return (Ec * dw * Math.PI * Math.tan(alpha)) /
+           (2 * Math.log(numerator / denominator));
+  }
+  // Fallback simplified estimation
+  return Ec * dw * Math.PI / 2;
+}
+
 export function calculateJointStiffness(
   preload: number,
   screw: ScrewData,
   material: MaterialData,
   clampLength: number,
-  gradeName: string
+  gradeName: string,
+  secondMaterial?: MaterialData | null,
+  clampLengthSplit?: number   // thickness of first layer (material); remainder is secondMaterial
 ): JointStiffnessResult {
   // Bolt stiffness: k_b = E_bolt × A_s / L_clamp
   const kBolt = (getBoltEModulus(gradeName) * screw.stressArea) / clampLength;
 
-  // Clamp stiffness (VDI 2230 simplified cone model)
-  // Using substitution diameter approach
-  const alpha = Math.PI / 6; // 30° pressure cone half-angle
   const dw = screw.headDiameter; // bearing diameter
   const dh = screw.holeDiameter; // hole diameter
-  const DA = dw + clampLength * Math.tan(alpha);
-
-  const Ec = material.elasticModulus * 1000; // GPa to MPa
-
-  // VDI formula for clamp stiffness
-  const numerator = (DA + dh) * (dw - dh);
-  const denominator = (DA - dh) * (dw + dh);
 
   let kClamp: number;
-  if (denominator > 0 && numerator > 0) {
-    kClamp = (Ec * dw * Math.PI * Math.tan(alpha)) /
-             (Math.log(numerator / denominator));
+
+  if (secondMaterial && clampLengthSplit != null && clampLengthSplit >= 0 && clampLengthSplit <= clampLength) {
+    const L1 = clampLengthSplit;
+    const L2 = clampLength - clampLengthSplit;
+    const Ec1 = material.elasticModulus * 1000; // GPa → MPa
+    const Ec2 = secondMaterial.elasticModulus * 1000;
+
+    if (L1 <= 0) {
+      kClamp = coneStiffness(Ec2, dw, dh, clampLength);
+    } else if (L2 <= 0) {
+      kClamp = coneStiffness(Ec1, dw, dh, clampLength);
+    } else {
+      // Multi-layer: two materials in series — combine compliance
+      const k1 = coneStiffness(Ec1, dw, dh, L1);
+      const k2 = coneStiffness(Ec2, dw, dh, L2);
+      // Series spring: 1/k = 1/k1 + 1/k2
+      kClamp = (k1 * k2) / (k1 + k2);
+    }
   } else {
-    // Fallback simplified estimation
-    kClamp = Ec * screw.d * Math.PI / 2;
+    const Ec = material.elasticModulus * 1000; // GPa → MPa
+    kClamp = coneStiffness(Ec, dw, dh, clampLength);
   }
 
-  // Enforce physical invariant: stiffness must be positive
-  if (kClamp <= 0 || !isFinite(kClamp)) {
-    // Fallback: simplified estimation
-    kClamp = Ec * screw.d * Math.PI / 2;
+  // Enforce physical invariant: stiffness must be at least 1 N/mm
+  kClamp = Math.max(kClamp, 1);
+
+  if (!isFinite(kClamp)) {
+    const Ec = material.elasticModulus * 1000;
+    kClamp = Math.max(Ec * screw.d * Math.PI / 2, 1);
   }
 
   const loadFactor = Math.max(0.001, Math.min(0.999, kBolt / (kBolt + kClamp)));

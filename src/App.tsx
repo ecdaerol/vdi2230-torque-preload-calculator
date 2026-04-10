@@ -2,19 +2,21 @@ import Calculator from './components/Calculator';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
+  const appIcon = 'app-icon.png';
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)', color: 'var(--ink)' }}>
       {/* Header */}
       <header className="card" style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-1 h-10 rounded-full" style={{ backgroundColor: 'var(--brand)' }}></div>
+            <img src={appIcon} alt="" className="w-11 h-11 rounded-[12px] shadow-sm" />
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: 'var(--ink)' }}>
-                TORQUE & PRELOAD CALCULATOR
+                Fastener Joint Calculator
               </h1>
-              <p className="text-xs font-medium tracking-wide uppercase" style={{ color: 'var(--muted)' }}>
-                VDI 2230 &bull; Torx &bull; Soft Materials
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Made by Ecda Erol
               </p>
             </div>
           </div>
@@ -32,7 +34,7 @@ export default function App() {
       <footer style={{ borderTop: '1px solid var(--line)' }} className="mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
-            VDI 2230 simplified calculation — for reference only. Verify critical bolted joints with a qualified engineer.
+            Practical VDI-style fastener sizing — for reference only. Verify critical bolted joints with a qualified engineer and test program.
           </p>
         </div>
       </footer>
