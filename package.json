@@ -1,8 +1,8 @@
 {
-  "name": "@ecdaerol/torque-calculator",
+  "name": "@ecdaerol/fastener-torque-calculator",
   "version": "1.0.0",
   "type": "module",
-  "description": "VDI 2230 bolt torque and preload calculator",
+  "description": "Fastener torque and preload calculator — VDI 2230 based, with Torx screw support and soft material checks",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
   "exports": {
@@ -53,7 +53,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ecdaerol/vdi2230-torque-preload-calculator"
+    "url": "https://github.com/ecdaerol/fastener-torque-calculator"
   },
   "author": "Ecda Erol",
   "license": "MIT",
