@@ -19,7 +19,6 @@ const N_PER_LBF = 4.44822;
 const assemblyOptions: { value: AssemblyType; label: string }[] = [
   { value: 'tapped-hole', label: 'Tapped Hole' },
   { value: 'through-nut', label: 'Nut & Bolt' },
-  { value: 'standoff', label: 'Hex Standoff' },
 ];
 
 function AssemblyModeIcon({ mode, active }: { mode: AssemblyType; active: boolean }) {
@@ -58,18 +57,6 @@ function AssemblyModeIcon({ mode, active }: { mode: AssemblyType; active: boolea
     );
   }
 
-  return (
-    <svg width="56" height="56" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="4" y="6.1" width="16" height="2.4" rx="1" {...common} />
-      <path d="M12 3.6v6.3" {...common} />
-      <path d="M9.2 3.6h5.6" {...common} />
-      <path d="M9.4 10h5.2l1.6 2-1.6 2h-5.2L7.8 12z" {...common} />
-      <path d="M12 14v4.4" {...common} />
-      <path d="M10.3 16.5l-1.2.8 1.2.8" {...common} />
-      <path d="M13.7 16.5l1.2.8-1.2.8" {...common} />
-      <rect x="4" y="18.8" width="16" height="1.7" rx="0.8" {...common} />
-    </svg>
-  );
 }
 
 export default function Calculator() {
@@ -92,7 +79,6 @@ export default function Calculator() {
   const [headWasherIdx, setHeadWasherIdx] = useState<number>(-1);
   const [nutWasherIdx, setNutWasherIdx] = useState<number>(-1);
   const [nutIdx, setNutIdx] = useState<number>(0);
-  const [standoffLength, setStandoffLength] = useState(0);
 
   const [tighteningMethodIdx, setTighteningMethodIdx] = useState(1);
   const [relaxationLossPct, setRelaxationLossPct] = useState(5);
@@ -195,10 +181,10 @@ export default function Calculator() {
   const axialServiceLoad = useImperial ? axialLoadInput * N_PER_LBF : axialLoadInput;
   const shearServiceLoad = useImperial ? shearLoadInput * N_PER_LBF : shearLoadInput;
 
-  const selectClass = 'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white border rounded-[10px]';
+  const selectClass = 'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
   const selectStyle: React.CSSProperties = { borderColor: 'var(--line)' };
-  const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-white border rounded-[10px]';
-  const smallInputClass = 'w-full px-2 py-1 text-sm font-mono bg-white border rounded-[10px]';
+  const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
+  const smallInputClass = 'w-full px-2 py-1 text-sm font-mono bg-[var(--panel)] border rounded-[10px]';
 
   const formatWasher = (washer: WasherData): string =>
     `${washer.standard} ${washer.type} — Ø${washer.outerDiameter.toFixed(1)} × ${washer.thickness.toFixed(1)} mm`;
@@ -222,7 +208,7 @@ export default function Calculator() {
                   className="flex flex-col items-center justify-center gap-3 min-h-[132px] px-4 py-4 rounded-[12px] text-sm font-medium transition-colors border"
                   style={
                     disabled
-                      ? { color: '#9ca3af', borderColor: 'var(--line)', backgroundColor: '#f8fafc', cursor: 'not-allowed', opacity: 0.65 }
+                      ? { color: '#9ca3af', borderColor: 'var(--line)', backgroundColor: 'var(--panel)', cursor: 'not-allowed', opacity: 0.65 }
                       : assemblyType === option.value
                         ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff', boxShadow: '0 1px 3px var(--shadow)', borderColor: 'transparent' }
                         : { color: 'var(--ink)', borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }
@@ -236,7 +222,7 @@ export default function Calculator() {
             })}
           </div>
 
-          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: '#eeeeee' }}>
+          <div className="flex rounded-[10px] p-1 mb-4" style={{ backgroundColor: 'var(--line)' }}>
             {(['utilization', 'torque', 'preload'] as const).map((mode) => (
               <button
                 key={mode}
@@ -273,7 +259,7 @@ export default function Calculator() {
                   min="0"
                   max="100"
                   step="5"
-                  className="w-20 px-3 py-2 text-lg font-mono text-center bg-white border rounded-[10px] focus:outline-none focus:ring-2"
+                  className="w-20 px-3 py-2 text-lg font-mono text-center bg-[var(--panel)] border rounded-[10px] focus:outline-none focus:ring-2"
                   style={{ borderColor: utilization > 100 ? 'var(--danger)' : 'var(--line)', '--tw-ring-color': 'var(--brand)' } as React.CSSProperties}
                   value={utilization}
                   onChange={(event) => setUtilization(snapPercent(parseFloat(event.target.value) || 0))}
@@ -337,14 +323,14 @@ export default function Calculator() {
           ) : screw?.isCountersunk ? (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Washer Under Head</label>
-              <div className="px-3 py-2 text-sm rounded-[10px] border" style={{ color: 'var(--muted)', borderColor: 'var(--line)', backgroundColor: '#f8fafc' }}>
+              <div className="px-3 py-2 text-sm rounded-[10px] border" style={{ color: 'var(--muted)', borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }}>
                 Not used with countersunk screws
               </div>
             </div>
           ) : screw && !screw.hasHead ? (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Washer Under Head</label>
-              <div className="px-3 py-2 text-sm rounded-[10px] border" style={{ color: 'var(--muted)', borderColor: 'var(--line)', backgroundColor: '#f8fafc' }}>
+              <div className="px-3 py-2 text-sm rounded-[10px] border" style={{ color: 'var(--muted)', borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }}>
                 Not applicable for set screws
               </div>
             </div>
@@ -386,22 +372,6 @@ export default function Calculator() {
             </>
           )}
 
-          {assemblyType === 'standoff' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Standoff Body Length [mm]</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                className={inputClass}
-                style={selectStyle}
-                value={standoffLength || ''}
-                onChange={(event) => setStandoffLength(parseFloat(event.target.value) || 0)}
-                placeholder="e.g. 10"
-              />
-            </div>
-          )}
-
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Bolt Grade</label>
             <select className={selectClass} style={selectStyle} value={gradeIdx} onChange={(event) => setGradeIdx(parseInt(event.target.value))}>
@@ -436,7 +406,7 @@ export default function Calculator() {
             </div>
           </div>
 
-          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }}>
+          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }}>
             <summary className="px-3 py-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--ink)' }}>
               Advanced friction settings
             </summary>
@@ -483,7 +453,7 @@ export default function Calculator() {
             </div>
           </details>
 
-          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }} open>
+          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }} open>
             <summary className="px-3 py-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--ink)' }}>
               Preload realism
             </summary>
@@ -533,7 +503,7 @@ export default function Calculator() {
             </div>
           </details>
 
-          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }} open>
+          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }} open>
             <summary className="px-3 py-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--ink)' }}>
               Receiver & operating loads
             </summary>
@@ -641,7 +611,7 @@ export default function Calculator() {
           </div>
 
           {tappedMaterial && clampLength > 0 && (
-            <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }}>
+            <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }}>
               <summary className="px-3 py-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--ink)' }}>
                 Advanced stiffness settings
               </summary>
@@ -698,7 +668,6 @@ export default function Calculator() {
           headWasher={headWasher}
           nutWasher={nutWasher}
           nut={nut}
-          standoffLength={standoffLength}
         />
         <Results
           inputMode={inputMode}

@@ -4,7 +4,7 @@ import type { MaterialData } from '../data/materials';
 import type { WasherData } from '../data/washers';
 import type { NutData } from '../data/nuts';
 
-export type AssemblyType = 'tapped-hole' | 'through-nut' | 'standoff';
+export type AssemblyType = 'tapped-hole' | 'through-nut';
 
 interface Props {
   assemblyType: AssemblyType;
