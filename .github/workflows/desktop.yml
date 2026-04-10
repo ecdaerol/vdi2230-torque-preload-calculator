@@ -21,4 +21,4 @@ jobs:
       - run: npx electron-builder --config electron-builder.yml
       - uses: softprops/action-gh-release@v2
         with:
-          files: release/*
+          files: release/*.{dmg,exe,zip,AppImage}
