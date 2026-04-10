@@ -16,7 +16,6 @@ interface Props {
   nut: NutData | null;
   clampLength: number;
   engagementLength: number;
-  standoffLength?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +89,6 @@ export default function AssemblyDiagram({
   nut,
   clampLength,
   engagementLength,
-  standoffLength = 0,
 }: Props) {
   // ---- Empty state ----
   if (!screw) {
@@ -114,7 +112,6 @@ export default function AssemblyDiagram({
   // Keep the preview representative, but visually stable across size and length changes.
   const clampH = 92;
   const engageH = assemblyType === 'through-nut' ? 44 : 58;
-  const standH = assemblyType === 'standoff' ? 42 : 0;
 
   const shankR = headStyle === 'set' ? 12 : 13;
   const dNom = shankR * 2;
@@ -170,20 +167,9 @@ export default function AssemblyDiagram({
   const clampTop = bodyStart;
   const clampBot = clampTop + clampH;
 
-  let standoffTop = 0;
-  let standoffBot = 0;
   let tappedTop = 0;
   let tappedBot = 0;
 
-  if (assemblyType === 'standoff') {
-    standoffTop = clampBot + 2;
-    standoffBot = standoffTop + standH;
-    tappedTop = standoffBot + 2;
-    tappedBot = tappedTop + engageH;
-  } else {
-    tappedTop = clampBot + 2;
-    tappedBot = tappedTop + engageH;
-  }
 
   // Nut / nut-washer positions (through-nut only)
   const nutWasherTop = assemblyType === 'through-nut' ? tappedBot + 2 : 0;
@@ -506,49 +492,7 @@ export default function AssemblyDiagram({
   }
 
   // -----------------------------------------------------------------------
-  // Standoff renderer — male/female hex electronics standoff
   // -----------------------------------------------------------------------
-  function renderStandoff(): React.ReactNode {
-    if (assemblyType !== 'standoff' || standH <= 0) return null;
-    const bodyHalf = 28;
-    const chamfer = 5;
-    const femaleBot = standoffTop + standH * 0.58;
-    const cavityR = shankR + 2.5;
-
-    return (
-      <g>
-        <path
-          d={`
-            M ${cx - bodyHalf + chamfer} ${standoffTop}
-            L ${cx + bodyHalf - chamfer} ${standoffTop}
-            L ${cx + bodyHalf} ${standoffTop + chamfer}
-            L ${cx + bodyHalf} ${standoffBot - chamfer}
-            L ${cx + bodyHalf - chamfer} ${standoffBot}
-            L ${cx - bodyHalf + chamfer} ${standoffBot}
-            L ${cx - bodyHalf} ${standoffBot - chamfer}
-            L ${cx - bodyHalf} ${standoffTop + chamfer}
-            Z
-          `}
-          fill="#e2e8f0"
-          stroke="#94a3b8"
-          strokeWidth="1"
-        />
-
-        <rect
-          x={cx - cavityR}
-          y={standoffTop + 1}
-          width={cavityR * 2}
-          height={femaleBot - standoffTop - 1}
-          fill="#ffffff"
-          stroke="#cbd5e1"
-          strokeWidth="0.6"
-          rx="0.5"
-        />
-
-        {renderThreads(standoffTop + 3, femaleBot - 1, 0)}
-      </g>
-    );
-  }
 
   // -----------------------------------------------------------------------
   // Dimension line helper
@@ -588,8 +532,6 @@ export default function AssemblyDiagram({
 
     if (assemblyType === 'through-nut') {
       shankBot = nutTop + nutH;
-    } else if (assemblyType === 'standoff') {
-      shankBot = standoffTop + standH * 0.58;
     } else {
       shankBot = tappedBot;
     }
@@ -603,22 +545,6 @@ export default function AssemblyDiagram({
     );
   }
 
-  function renderStandoffStud(): React.ReactNode {
-    if (assemblyType !== 'standoff' || standH <= 0) return null;
-    const studTop = standoffBot;
-    const studBot = tappedTop + engageH * 0.72;
-
-    return (
-      <g>
-        <rect
-          x={cx - shankR} y={studTop}
-          width={shankR * 2} height={studBot - studTop}
-          fill={SCREW_FILL} stroke={SCREW_STROKE} strokeWidth="0.5"
-        />
-        {renderThreads(studTop + 2, studBot - 1, 0)}
-      </g>
-    );
-  }
 
   // -----------------------------------------------------------------------
   // Dimension lines
@@ -645,16 +571,6 @@ export default function AssemblyDiagram({
       />,
     );
 
-    // Standoff length
-    if (assemblyType === 'standoff' && standH > 0) {
-      elements.push(
-        <DimLine
-          key="dim-standoff"
-          x={dimX} y1={standoffTop} y2={standoffBot}
-          label={`${standoffLength.toFixed(1)} mm`} side="left"
-        />,
-      );
-    }
 
     return <>{elements}</>;
   }
@@ -681,9 +597,6 @@ export default function AssemblyDiagram({
   if (nut && assemblyType === 'through-nut') {
     infoItems.push({ label: 'Nut', value: nut.type, fill: NUT_FILL, stroke: NUT_STROKE });
   }
-  if (assemblyType === 'standoff' && standH > 0) {
-    infoItems.push({ label: 'Hex standoff', value: 'Male / female electronics standoff', fill: '#e2e8f0', stroke: '#94a3b8' });
-  }
 
   const contentBottom = assemblyType === 'through-nut'
     ? nutTop + nutH
@@ -700,7 +613,7 @@ export default function AssemblyDiagram({
           Assembly View
         </h3>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: '#f3f4f6' }}>
-          {assemblyType === 'tapped-hole' ? 'Tapped hole' : assemblyType === 'through-nut' ? 'Nut & bolt' : 'Hex standoff'}
+          {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
         </span>
       </div>
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] items-start">
@@ -744,8 +657,6 @@ export default function AssemblyDiagram({
               clampedMaterial?.name ?? 'Clamped part',
             )}
 
-        {/* ---- Standoff (only for standoff assembly) ---- */}
-        {renderStandoff()}
 
         {/* ---- Bottom / tapped part ---- */}
         {assemblyType === 'tapped-hole' ? (
@@ -763,7 +674,6 @@ export default function AssemblyDiagram({
             tappedMaterial?.name ?? 'Bottom part',
           )
         ) : (
-          // Standoff — bottom part is tapped
           renderTappedPlate(
             tappedTop, engageH,
             tapFill, tapStroke,
@@ -773,7 +683,6 @@ export default function AssemblyDiagram({
 
         {/* ---- Screw shank ---- */}
         {renderShank()}
-        {renderStandoffStud()}
 
         {/* ---- Head washer ---- */}
         {headWasher && headStyle !== 'countersunk' && headStyle !== 'set' && (
@@ -795,8 +704,8 @@ export default function AssemblyDiagram({
         {/* ---- Nut ---- */}
         {renderNut()}
 
-        {/* ---- Thread pattern in tapped regions (tapped-hole & standoff bottom) ---- */}
-        {/* Already rendered inside renderTappedPlate and renderStandoff */}
+        {/* ---- Thread pattern in tapped regions ---- */}
+        {/* Already rendered inside renderTappedPlate */}
 
             {/* ---- Dimension lines ---- */}
             {renderDimensions()}
