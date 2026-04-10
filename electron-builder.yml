@@ -1,5 +1,5 @@
-appId: com.ecdaerol.torque-calculator
-productName: "Torque Calculator"
+appId: com.ecdaerol.fastener-torque-calculator
+productName: "Fastener Torque Calculator"
 directories:
   output: release
   buildResources: electron/icon
