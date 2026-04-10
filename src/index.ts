@@ -6,6 +6,7 @@ export * from './calc/torque';
 export * from './calc/surfacePressure';
 export * from './calc/threadStripping';
 export * from './calc/jointStiffness';
+export * from './calc/operatingState';
 
 // Data
 export * from './data/screws';
@@ -13,6 +14,7 @@ export * from './data/materials';
 export * from './data/friction';
 export * from './data/nuts';
 export * from './data/washers';
+export * from './data/receivers';
 
 // React components
 export * from './components/Calculator';
