@@ -1,0 +1,25 @@
+appId: com.ecdaerol.torque-calculator
+productName: "Torque Calculator"
+directories:
+  output: release
+  buildResources: electron/icon
+
+extraMetadata:
+  main: electron/main.cjs
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [universal]
+
+win:
+  target:
+    - target: portable
+      arch: [x64]
+
+files:
+  - dist/**/*
+  - electron/main.cjs
+  - electron/preload.cjs
+  - package.json
