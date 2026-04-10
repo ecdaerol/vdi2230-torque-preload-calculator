@@ -7,6 +7,7 @@ export * from './calc/surfacePressure';
 export * from './calc/threadStripping';
 export * from './calc/jointStiffness';
 export * from './calc/operatingState';
+export * from './calc/preloadRealism';
 
 // Data
 export * from './data/screws';
@@ -16,14 +17,14 @@ export * from './data/nuts';
 export * from './data/washers';
 export * from './data/receivers';
 
-// React components
-export * from './components/Calculator';
-export * from './components/Results';
-export * from './components/AssemblyDiagram';
-export * from './components/JointDiagram';
-export * from './components/MaterialSelector';
-export * from './components/ScrewSelector';
-export * from './components/ErrorBoundary';
+// React components (default exports → named re-exports)
+export { default as Calculator } from './components/Calculator';
+export { default as Results } from './components/Results';
+export { default as AssemblyDiagram } from './components/AssemblyDiagram';
+export { default as JointDiagram } from './components/JointDiagram';
+export { default as MaterialSelector } from './components/MaterialSelector';
+export { default as ScrewSelector } from './components/ScrewSelector';
+export { default as ErrorBoundary } from './components/ErrorBoundary';
 
-// Full app shell (default export → named re-export)
+// Full app shell
 export { default as TorqueApp } from './App';
