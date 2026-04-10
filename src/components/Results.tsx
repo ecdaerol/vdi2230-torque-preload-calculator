@@ -3,12 +3,14 @@ import { MaterialData } from '../data/materials';
 import { FrictionPair } from '../data/friction';
 import { WasherData } from '../data/washers';
 import { NutData } from '../data/nuts';
+import { ReceiverPreset } from '../data/receivers';
 import { AssemblyType } from './AssemblyDiagram';
 import { BoltGrade, calculateTorque, calculateBoltStress, BoltStressResult } from '../calc/torque';
 import { calculateSurfacePressure, SurfacePressureResult } from '../calc/surfacePressure';
 import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadStripping';
 import { calculateJointStiffness, JointStiffnessResult } from '../calc/jointStiffness';
 import { TighteningMethod, combineScatter, calculateServicePreload } from '../calc/preloadRealism';
+import { calculateOperatingState, OperatingStateResult } from '../calc/operatingState';
 
 interface Props {
   inputMode: 'utilization' | 'torque' | 'preload';
@@ -33,6 +35,10 @@ interface Props {
   tighteningMethod: TighteningMethod;
   relaxationLossPct: number;
   settlementMicrons: number;
+  receiverPreset: ReceiverPreset;
+  axialServiceLoad: number;
+  shearServiceLoad: number;
+  slipFriction: number;
 }
 
 function safe(value: number): string {
@@ -60,6 +66,18 @@ function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' })
   );
 }
 
+function getOperatingStatus(
+  axialServiceLoad: number,
+  shearServiceLoad: number,
+  operatingState: OperatingStateResult | null,
+): 'ok' | 'warning' | 'danger' | 'na' {
+  if (axialServiceLoad <= 0 && shearServiceLoad <= 0) return 'na';
+  if (!operatingState) return 'warning';
+  if (operatingState.isSeparated || operatingState.willSlip || operatingState.shearSafetyFactor < 1) return 'danger';
+  if (operatingState.separationMargin < 1.5 || operatingState.slipSafetyFactor < 1.5 || operatingState.shearSafetyFactor < 1.5) return 'warning';
+  return 'ok';
+}
+
 export default function Results({
   inputMode,
   utilization,
@@ -83,6 +101,10 @@ export default function Results({
   tighteningMethod,
   relaxationLossPct,
   settlementMicrons,
+  receiverPreset,
+  axialServiceLoad,
+  shearServiceLoad,
+  slipFriction,
 }: Props) {
   if (!screw) {
     return (
@@ -118,7 +140,7 @@ export default function Results({
     );
   }
 
-  const boltStress: BoltStressResult | null = calculateBoltStress(preload, screw, grade, friction);
+  const boltStress: BoltStressResult = calculateBoltStress(preload, screw, grade, friction);
 
   const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
   let sp: SurfacePressureResult | null = null;
@@ -137,7 +159,7 @@ export default function Results({
 
   let ts: ThreadStrippingResult | null = null;
   if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
-    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade);
+    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade, receiverPreset);
   }
 
   let js: JointStiffnessResult | null = null;
@@ -170,6 +192,18 @@ export default function Results({
     bearingID,
   );
 
+  const operatingState = js
+    ? calculateOperatingState({
+        servicePreload: servicePreload.service.preloadNominal,
+        axialLoad: axialServiceLoad,
+        shearLoad: shearServiceLoad,
+        loadFactor: js.loadFactor,
+        interfaceFriction: slipFriction,
+        screw,
+        grade,
+      })
+    : null;
+
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
   const forceUnit = useImperial ? 'lbf' : 'N';
@@ -185,6 +219,11 @@ export default function Results({
   const creepSensitive = [clampedMaterial, tappedMaterial]
     .filter((material): material is MaterialData => !!material)
     .some((material) => material.creepRisk !== 'low');
+
+  const operatingStatus = getOperatingStatus(axialServiceLoad, shearServiceLoad, operatingState);
+  const receiverMismatch = receiverPreset.recommendedCategories !== 'any'
+    && tappedMaterial
+    && !receiverPreset.recommendedCategories.includes(tappedMaterial.category);
 
   const warnings: string[] = [];
   if (boltStress.utilization > 90) {
@@ -210,6 +249,25 @@ export default function Results({
   }
   if (settlementMicrons > 0 && !js) {
     warnings.push('Settlement loss could not be translated into force because clamp stiffness is unavailable — select clamp material and clamp length for a better estimate.');
+  }
+  if (receiverMismatch) {
+    warnings.push(`${receiverPreset.label} is not the usual choice for ${tappedMaterial?.name}. Double-check that the receiver type matches the part design.`);
+  }
+  if ((axialServiceLoad > 0 || shearServiceLoad > 0) && !operatingState) {
+    warnings.push('Operating load checks need clamp stiffness. Select clamp material and clamp length to evaluate separation and slip behavior.');
+  }
+  if (operatingState?.isSeparated) {
+    warnings.push(`The joint is predicted to separate under the entered axial load. Separation load is about ${safeN(operatingState.separationLoad * Nto, 0)} ${forceUnit}.`);
+  } else if (operatingState && axialServiceLoad > 0 && operatingState.separationMargin < 1.5) {
+    warnings.push(`Separation margin is low (SF ${safeN(operatingState.separationMargin, 2)}). Consider more preload, more clamp stiffness, or lower axial load.`);
+  }
+  if (operatingState?.willSlip) {
+    warnings.push(`Slip is predicted under the entered transverse load. Available friction resistance is about ${safeN(operatingState.availableSlipResistance * Nto, 0)} ${forceUnit}.`);
+  } else if (operatingState && shearServiceLoad > 0 && operatingState.slipSafetyFactor < 1.5) {
+    warnings.push(`Slip margin is low (SF ${safeN(operatingState.slipSafetyFactor, 2)}). Consider more clamp load, more interfaces, or a higher slip-friction condition.`);
+  }
+  if (operatingState && shearServiceLoad > 0 && operatingState.shearSafetyFactor < 1.5) {
+    warnings.push(`Fastener shear margin is low (SF ${safeN(operatingState.shearSafetyFactor, 2)}). Verify the shear path and fastener sizing.`);
   }
 
   const disclaimers: string[] = [];
@@ -312,11 +370,96 @@ export default function Results({
         </div>
       </div>
 
+      <div className="card p-5">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>Operating State</h3>
+          <StatusBadge status={operatingStatus} />
+        </div>
+        {!operatingState ? (
+          axialServiceLoad > 0 || shearServiceLoad > 0 ? (
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              Operating-load checks need a clamp stiffness model. Select clamp material and clamp length to evaluate separation and slip.
+            </p>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              Enter axial or transverse service loads to evaluate separation, slip, and simple shear behavior.
+            </p>
+          )
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Axial load</div>
+                <div className="text-sm font-mono font-semibold">{safeN(axialServiceLoad * Nto, 0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Added bolt load</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.additionalBoltLoad * Nto, 0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Remaining clamp</div>
+                <div className="text-sm font-mono font-semibold" style={{ color: operatingState.remainingClampForce <= 0 ? 'var(--danger)' : 'var(--ink)' }}>
+                  {safeN(operatingState.remainingClampForce * Nto, 0)} {forceUnit}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Bolt force under load</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.boltForceUnderAxialLoad * Nto, 0)} {forceUnit}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Separation load</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.separationLoad * Nto, 0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Separation margin</div>
+                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(operatingState.separationMargin) }}>
+                  {safeN(operatingState.separationMargin, 2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Slip resistance</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.availableSlipResistance * Nto, 0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Slip safety factor</div>
+                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(operatingState.slipSafetyFactor) }}>
+                  {safeN(operatingState.slipSafetyFactor, 2)}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Shear load</div>
+                <div className="text-sm font-mono font-semibold">{safeN(shearServiceLoad * Nto, 0)} {forceUnit}</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Shear stress</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.shearStress, 1)} MPa</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Shear allowable</div>
+                <div className="text-sm font-mono font-semibold">{safeN(operatingState.shearAllowable, 1)} MPa</div>
+              </div>
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Shear safety factor</div>
+                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(operatingState.shearSafetyFactor) }}>
+                  {safeN(operatingState.shearSafetyFactor, 2)}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-[10px] space-y-1" style={{ color: 'var(--muted)' }}>
+              <div>Load split from stiffness model: bolt share n = {safeN(operatingState.boltLoadShare, 3)} · clamp share = {safeN(operatingState.clampLoadShare, 3)}</div>
+              <div>Slip check uses remaining service clamp load and μ = {safeN(slipFriction, 2)} at the clamped interface.</div>
+            </div>
+          </>
+        )}
+      </div>
+
       {creepSensitive && (
         <div className="card p-5" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
-          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>
-            Creep / Relaxation Watch
-          </h3>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Creep / Relaxation Watch</h3>
           <p className="text-sm mb-2" style={{ color: '#4e342e' }}>
             One or more selected materials are creep-sensitive. Service preload may continue to fall after initial settling, especially in polymers and printed parts.
           </p>
@@ -329,9 +472,7 @@ export default function Results({
       )}
 
       <div className="card p-5">
-        <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>
-          Bolt Stress — {grade.name}
-        </h3>
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Bolt Stress — {grade.name}</h3>
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>σ axial</div>
@@ -392,11 +533,7 @@ export default function Results({
         </div>
         {!hasSurfacePressure ? (
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
-            {!screw.hasHead
-              ? 'N/A for set screws (no bearing surface)'
-              : screw.isCountersunk
-                ? 'N/A for countersunk heads'
-                : 'Select a clamped material to check surface pressure.'}
+            {!screw.hasHead ? 'N/A for set screws (no bearing surface)' : screw.isCountersunk ? 'N/A for countersunk heads' : 'Select a clamped material to check surface pressure.'}
           </p>
         ) : (
           <>
@@ -411,9 +548,7 @@ export default function Results({
               </div>
               <div>
                 <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
-                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(sp!.safetyFactor) }}>
-                  {safeN(sp!.safetyFactor, 2)}
-                </div>
+                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(sp!.safetyFactor) }}>{safeN(sp!.safetyFactor, 2)}</div>
               </div>
             </div>
             <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>Bearing area: {safe(sp!.bearingArea)} mm²</div>
@@ -444,9 +579,7 @@ export default function Results({
                 </div>
                 <div>
                   <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
-                  <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(spNut.safetyFactor) }}>
-                    {safeN(spNut.safetyFactor, 2)}
-                  </div>
+                  <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(spNut.safetyFactor) }}>{safeN(spNut.safetyFactor, 2)}</div>
                 </div>
               </div>
               <div className="mt-1 text-[10px]" style={{ color: 'var(--muted)' }}>Bearing area: {safe(spNut.bearingArea)} mm²</div>
@@ -475,20 +608,21 @@ export default function Results({
               </div>
               <div>
                 <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Safety Factor</div>
-                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(ts.safetyFactor) }}>
-                  {safeN(ts.safetyFactor, 2)}
-                </div>
+                <div className="text-sm font-mono font-semibold" style={{ color: safetyColor(ts.safetyFactor) }}>{safeN(ts.safetyFactor, 2)}</div>
               </div>
               <div>
                 <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Min. Engagement</div>
                 <div className="text-sm font-mono font-semibold">{safe(ts.minEngagementLength)} mm</div>
               </div>
             </div>
-            <div className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
-              Critical mode: <span className="font-semibold">{ts.criticalMode === 'internal' ? 'Internal (nut/tapped material)' : 'External (bolt thread)'}</span>
-              {ts.externalStrippingForce !== Infinity && (
-                <> · Internal: {safeN(ts.internalStrippingForce * Nto, 0)} {forceUnit} · External: {safeN(ts.externalStrippingForce * Nto, 0)} {forceUnit}</>
-              )}
+            <div className="mt-2 text-[10px] space-y-1" style={{ color: 'var(--muted)' }}>
+              <div>Receiver: <span className="font-semibold">{ts.receiverLabel}</span> · Capacity factor ×{safeN(ts.receiverFactor, 2)}</div>
+              <div>
+                Critical mode: <span className="font-semibold">{ts.criticalMode === 'internal' ? 'Internal (nut/tapped material)' : 'External (bolt thread)'}</span>
+                {ts.externalStrippingForce !== Infinity && (
+                  <> · Internal: {safeN(ts.internalStrippingForce * Nto, 0)} {forceUnit} · External: {safeN(ts.externalStrippingForce * Nto, 0)} {forceUnit}</>
+                )}
+              </div>
             </div>
             {ts.status !== 'ok' && (
               <div className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>

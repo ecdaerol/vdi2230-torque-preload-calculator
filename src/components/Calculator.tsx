@@ -9,6 +9,7 @@ import { MaterialData } from '../data/materials';
 import { FrictionPair, frictionDatabase } from '../data/friction';
 import { WasherData, washerDatabase } from '../data/washers';
 import { NutData, nutDatabase } from '../data/nuts';
+import { ReceiverPreset, receiverPresets } from '../data/receivers';
 import { boltGrades, calculateTorque, calculatePreload } from '../calc/torque';
 import { tighteningMethods } from '../calc/preloadRealism';
 
@@ -97,9 +98,15 @@ export default function Calculator() {
   const [relaxationLossPct, setRelaxationLossPct] = useState(5);
   const [settlementMicrons, setSettlementMicrons] = useState(0);
 
+  const [receiverPresetIdx, setReceiverPresetIdx] = useState(0);
+  const [axialLoadInput, setAxialLoadInput] = useState(0);
+  const [shearLoadInput, setShearLoadInput] = useState(0);
+  const [slipFriction, setSlipFriction] = useState(0.15);
+
   const friction = customFriction ?? frictionDatabase[frictionIdx];
   const grade = boltGrades[gradeIdx];
   const tighteningMethod = tighteningMethods[tighteningMethodIdx];
+  const receiverPreset: ReceiverPreset = receiverPresets[receiverPresetIdx];
 
   const frictionGroups = useMemo(() => {
     const groups = new Map<string, { item: FrictionPair; index: number }[]>();
@@ -185,6 +192,9 @@ export default function Calculator() {
     }
   }
 
+  const axialServiceLoad = useImperial ? axialLoadInput * N_PER_LBF : axialLoadInput;
+  const shearServiceLoad = useImperial ? shearLoadInput * N_PER_LBF : shearLoadInput;
+
   const selectClass = 'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white border rounded-[10px]';
   const selectStyle: React.CSSProperties = { borderColor: 'var(--line)' };
   const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-white border rounded-[10px]';
@@ -264,10 +274,7 @@ export default function Calculator() {
                   max="100"
                   step="5"
                   className="w-20 px-3 py-2 text-lg font-mono text-center bg-white border rounded-[10px] focus:outline-none focus:ring-2"
-                  style={{
-                    borderColor: utilization > 100 ? 'var(--danger)' : 'var(--line)',
-                    '--tw-ring-color': 'var(--brand)',
-                  } as React.CSSProperties}
+                  style={{ borderColor: utilization > 100 ? 'var(--danger)' : 'var(--line)', '--tw-ring-color': 'var(--brand)' } as React.CSSProperties}
                   value={utilization}
                   onChange={(event) => setUtilization(snapPercent(parseFloat(event.target.value) || 0))}
                 />
@@ -320,17 +327,10 @@ export default function Calculator() {
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
                 Washer Under Head
               </label>
-              <select
-                className={selectClass}
-                style={selectStyle}
-                value={headWasherIdx}
-                onChange={(event) => setHeadWasherIdx(parseInt(event.target.value))}
-              >
+              <select className={selectClass} style={selectStyle} value={headWasherIdx} onChange={(event) => setHeadWasherIdx(parseInt(event.target.value))}>
                 <option value={-1}>None</option>
                 {matchingWashers.map((washer, index) => (
-                  <option key={`hw-${index}`} value={index}>
-                    {formatWasher(washer)}
-                  </option>
+                  <option key={`hw-${index}`} value={index}>{formatWasher(washer)}</option>
                 ))}
               </select>
             </div>
@@ -366,12 +366,7 @@ export default function Calculator() {
             <>
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Nut</label>
-                <select
-                  className={selectClass}
-                  style={selectStyle}
-                  value={nutIdx}
-                  onChange={(event) => setNutIdx(parseInt(event.target.value))}
-                >
+                <select className={selectClass} style={selectStyle} value={nutIdx} onChange={(event) => setNutIdx(parseInt(event.target.value))}>
                   {matchingNuts.length === 0 && <option value={0}>Select a screw first</option>}
                   {matchingNuts.map((item, index) => (
                     <option key={`nut-${index}`} value={index}>{formatNut(item)}</option>
@@ -381,12 +376,7 @@ export default function Calculator() {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Washer Under Nut</label>
-                <select
-                  className={selectClass}
-                  style={selectStyle}
-                  value={nutWasherIdx}
-                  onChange={(event) => setNutWasherIdx(parseInt(event.target.value))}
-                >
+                <select className={selectClass} style={selectStyle} value={nutWasherIdx} onChange={(event) => setNutWasherIdx(parseInt(event.target.value))}>
                   <option value={-1}>None</option>
                   {matchingWashers.map((washer, index) => (
                     <option key={`nw-${index}`} value={index}>{formatWasher(washer)}</option>
@@ -414,12 +404,7 @@ export default function Calculator() {
 
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Bolt Grade</label>
-            <select
-              className={selectClass}
-              style={selectStyle}
-              value={gradeIdx}
-              onChange={(event) => setGradeIdx(parseInt(event.target.value))}
-            >
+            <select className={selectClass} style={selectStyle} value={gradeIdx} onChange={(event) => setGradeIdx(parseInt(event.target.value))}>
               {boltGrades.map((item, index) => (
                 <option key={item.name} value={index}>{item.name} (Rp₀.₂ = {item.Rp02} MPa)</option>
               ))}
@@ -505,12 +490,7 @@ export default function Calculator() {
             <div className="px-3 pb-3 pt-1 space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Tightening method</label>
-                <select
-                  className={selectClass}
-                  style={selectStyle}
-                  value={tighteningMethodIdx}
-                  onChange={(event) => setTighteningMethodIdx(parseInt(event.target.value))}
-                >
+                <select className={selectClass} style={selectStyle} value={tighteningMethodIdx} onChange={(event) => setTighteningMethodIdx(parseInt(event.target.value))}>
                   {tighteningMethods.map((method, index) => (
                     <option key={method.key} value={index}>{method.label}</option>
                   ))}
@@ -550,6 +530,73 @@ export default function Calculator() {
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
                 Use these to estimate service preload after settling, creep, or early-life preload loss.
               </p>
+            </div>
+          </details>
+
+          <details className="mb-4 rounded-[10px] border" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }} open>
+            <summary className="px-3 py-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--ink)' }}>
+              Receiver & operating loads
+            </summary>
+            <div className="px-3 pb-3 pt-1 space-y-3">
+              {assemblyType !== 'through-nut' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Thread receiver</label>
+                  <select className={selectClass} style={selectStyle} value={receiverPresetIdx} onChange={(event) => setReceiverPresetIdx(parseInt(event.target.value))}>
+                    {receiverPresets.map((preset, index) => (
+                      <option key={preset.key} value={index}>{preset.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    {receiverPreset.description} · Capacity factor ×{receiverPreset.internalCapacityFactor.toFixed(2)}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>External axial load [{useImperial ? 'lbf' : 'N'}]</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    className={inputClass}
+                    style={selectStyle}
+                    value={axialLoadInput || ''}
+                    onChange={(event) => setAxialLoadInput(Math.max(0, parseFloat(event.target.value) || 0))}
+                    placeholder={useImperial ? 'e.g. 250 lbf' : 'e.g. 1200 N'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>External shear load [{useImperial ? 'lbf' : 'N'}]</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    className={inputClass}
+                    style={selectStyle}
+                    value={shearLoadInput || ''}
+                    onChange={(event) => setShearLoadInput(Math.max(0, parseFloat(event.target.value) || 0))}
+                    placeholder={useImperial ? 'e.g. 120 lbf' : 'e.g. 500 N'}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Slip interface friction μ</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="1"
+                  className={inputClass}
+                  style={selectStyle}
+                  value={slipFriction}
+                  onChange={(event) => setSlipFriction(Math.max(0, parseFloat(event.target.value) || 0))}
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                  Used for slip resistance under transverse load. This is separate from tightening friction.
+                </p>
+              </div>
             </div>
           </details>
 
@@ -599,9 +646,7 @@ export default function Calculator() {
                 Advanced stiffness settings
               </summary>
               <div className="px-3 pb-3 pt-1">
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
-                  Top part share of clamp length [mm]
-                </label>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Top part share of clamp length [mm]</label>
                 <input
                   type="number"
                   step="0.1"
@@ -678,6 +723,10 @@ export default function Calculator() {
           tighteningMethod={tighteningMethod}
           relaxationLossPct={relaxationLossPct}
           settlementMicrons={settlementMicrons}
+          receiverPreset={receiverPreset}
+          axialServiceLoad={axialServiceLoad}
+          shearServiceLoad={shearServiceLoad}
+          slipFriction={slipFriction}
         />
         <JointDiagram
           preload={preload}

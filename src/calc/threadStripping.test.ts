@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculateThreadStripping } from './threadStripping';
 import { screwDatabase } from '../data/screws';
 import { materialDatabase } from '../data/materials';
+import { receiverPresets } from '../data/receivers';
 import { boltGrades } from './torque';
 
 const M6_pan = screwDatabase.find(s => s.size === 'M6' && s.standard === 'ISO 14580')!;
@@ -12,6 +13,9 @@ const pa12sls = materialDatabase.find(m => m.name === 'PA12 (SLS/MJF)')!;
 const steel   = materialDatabase.find(m => m.name === 'Steel (generic)')!;
 
 const grade88 = boltGrades.find(g => g.name === '8.8')!;
+const directTapped = receiverPresets.find((preset) => preset.key === 'direct-tapped')!;
+const solidInsert = receiverPresets.find((preset) => preset.key === 'solid-insert')!;
+const rivnut = receiverPresets.find((preset) => preset.key === 'rivnut')!;
 
 describe('calculateThreadStripping', () => {
   it('higher engagement length gives higher stripping force', () => {
@@ -21,7 +25,6 @@ describe('calculateThreadStripping', () => {
   });
 
   it('safety factor > 1 for aluminum at 1.5d engagement', () => {
-    // 1.5 × M6 = 9 mm engagement; 10 kN preload
     const result = calculateThreadStripping(10000, M6_pan, alu6061, 9);
     expect(result.safetyFactor).toBeGreaterThan(1);
   });
@@ -45,12 +48,9 @@ describe('calculateThreadStripping', () => {
 
   it('both internal and external modes are computed when a grade is supplied with steel nut', () => {
     const result = calculateThreadStripping(5000, M6_pan, steel, 9, grade88);
-    // Both modes must be finite (not Infinity) when grade is provided
     expect(Number.isFinite(result.internalStrippingForce)).toBe(true);
     expect(Number.isFinite(result.externalStrippingForce)).toBe(true);
-    // externalStrippingForce should be well above zero
     expect(result.externalStrippingForce).toBeGreaterThan(0);
-    // strippingForce is the governing (minimum) mode
     expect(result.strippingForce).toBe(
       Math.min(result.internalStrippingForce, result.externalStrippingForce)
     );
@@ -72,5 +72,18 @@ describe('calculateThreadStripping', () => {
     const r6  = calculateThreadStripping(5000, M6_pan, alu6061, 6);
     const r12 = calculateThreadStripping(5000, M6_pan, alu6061, 12);
     expect(r12.shearArea / r6.shearArea).toBeCloseTo(2, 5);
+  });
+
+  it('solid insert improves stripping margin compared with direct tapped material', () => {
+    const direct = calculateThreadStripping(5000, M6_pan, alu6061, 9, grade88, directTapped);
+    const inserted = calculateThreadStripping(5000, M6_pan, alu6061, 9, grade88, solidInsert);
+    expect(inserted.safetyFactor).toBeGreaterThan(direct.safetyFactor);
+    expect(inserted.minEngagementLength).toBeLessThan(direct.minEngagementLength);
+  });
+
+  it('rivnut reduces stripping margin compared with direct tapped material', () => {
+    const direct = calculateThreadStripping(5000, M6_pan, alu6061, 9, grade88, directTapped);
+    const blind = calculateThreadStripping(5000, M6_pan, alu6061, 9, grade88, rivnut);
+    expect(blind.safetyFactor).toBeLessThan(direct.safetyFactor);
   });
 });

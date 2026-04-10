@@ -1,5 +1,6 @@
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
+import { ReceiverPreset, receiverPresets } from '../data/receivers';
 import { BoltGrade } from './torque';
 
 export interface ThreadStrippingResult {
@@ -11,7 +12,13 @@ export interface ThreadStrippingResult {
   minEngagementLength: number;      // mm (for SF = 1.5)
   shearArea: number;                // mm² (internal shear area)
   engagementFactor: number;         // C_int
+  receiverFactor: number;
+  receiverLabel: string;
   status: 'ok' | 'warning' | 'danger';
+}
+
+function getDefaultReceiver(): ReceiverPreset {
+  return receiverPresets[0];
 }
 
 export function calculateThreadStripping(
@@ -19,27 +26,22 @@ export function calculateThreadStripping(
   screw: ScrewData,
   material: MaterialData,
   engagementLength: number,
-  grade?: BoltGrade
+  grade?: BoltGrade,
+  receiver: ReceiverPreset = getDefaultReceiver(),
 ): ThreadStrippingResult {
   const { d, d2, pitch } = screw;
   const P = pitch;
 
-  // Internal minor diameter per ISO 724
   const d1 = d - 1.0825 * P;
 
-  // Geometry-derived engagement factors (VDI 2230 §5.5)
-  const tan30 = Math.tan(Math.PI / 6); // tan(30°)
+  const tan30 = Math.tan(Math.PI / 6);
   const C_int = (P / 2 + tan30 * (d - d2)) / P;
-  // External: uses minor diameter d3 ≈ d1 for the bolt side
   const d3 = screw.d3;
   const C_ext = (P / 2 + tan30 * (d2 - d3)) / P;
 
-  // Internal stripping (nut/tapped material)
-  // Shear area: π * d1 * Le * C_int
   const shearArea = Math.PI * d1 * engagementLength * Math.max(C_int, 0.01);
-  const internalStrippingForce = shearArea * material.shearStrength;
+  const internalStrippingForce = shearArea * material.shearStrength * receiver.internalCapacityFactor;
 
-  // External stripping (bolt at 0.6 * Rm)
   let externalStrippingForce: number;
   if (grade) {
     const Rm = grade.tensileStrength;
@@ -55,9 +57,8 @@ export function calculateThreadStripping(
 
   const safetyFactor = preload > 0 ? strippingForce / preload : Infinity;
 
-  // Minimum engagement length for SF = 1.5 (based on internal mode)
   const minEngagementLength = (1.5 * preload) / (
-    Math.PI * d1 * Math.max(C_int, 0.01) * material.shearStrength
+    Math.PI * d1 * Math.max(C_int, 0.01) * material.shearStrength * receiver.internalCapacityFactor
   );
 
   let status: 'ok' | 'warning' | 'danger' = 'ok';
@@ -73,6 +74,8 @@ export function calculateThreadStripping(
     minEngagementLength,
     shearArea,
     engagementFactor: C_int,
+    receiverFactor: receiver.internalCapacityFactor,
+    receiverLabel: receiver.label,
     status,
   };
 }
