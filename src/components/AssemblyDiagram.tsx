@@ -167,8 +167,8 @@ export default function AssemblyDiagram({
   const clampTop = bodyStart;
   const clampBot = clampTop + clampH;
 
-  let tappedTop = 0;
-  let tappedBot = 0;
+  const tappedTop = 0;
+  const tappedBot = 0;
 
 
   // Nut / nut-washer positions (through-nut only)

@@ -5,12 +5,10 @@ import { WasherData } from '../data/washers';
 import { NutData } from '../data/nuts';
 import { ReceiverPreset } from '../data/receivers';
 import { AssemblyType } from './AssemblyDiagram';
-import { BoltGrade, calculateTorque, calculateBoltStress, BoltStressResult } from '../calc/torque';
-import { calculateSurfacePressure, SurfacePressureResult } from '../calc/surfacePressure';
-import { calculateThreadStripping, ThreadStrippingResult } from '../calc/threadStripping';
-import { calculateJointStiffness, JointStiffnessResult } from '../calc/jointStiffness';
-import { TighteningMethod, combineScatter, calculateServicePreload } from '../calc/preloadRealism';
-import { calculateOperatingState, OperatingStateResult } from '../calc/operatingState';
+import { BoltGrade } from '../calc/torque';
+import { TighteningMethod } from '../calc/preloadRealism';
+import { OperatingStateResult } from '../calc/operatingState';
+import { computeResults } from '../domain/useCase/computeResults';
 
 interface Props {
   inputMode: 'utilization' | 'torque' | 'preload';
@@ -140,69 +138,46 @@ export default function Results({
     );
   }
 
-  const boltStress: BoltStressResult = calculateBoltStress(preload, screw, grade, friction);
-
-  const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
-  let sp: SurfacePressureResult | null = null;
-  if (hasSurfacePressure) {
-    const headBearingOD = headWasher ? headWasher.outerDiameter : bearingOD;
-    const headBearingID = headWasher ? headWasher.innerDiameter : bearingID;
-    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, headBearingOD, headBearingID);
-  }
-
-  let spNut: SurfacePressureResult | null = null;
-  if (assemblyType === 'through-nut' && tappedMaterial && nut) {
-    const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
-    const nutBearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
-    spNut = calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
-  }
-
-  let ts: ThreadStrippingResult | null = null;
-  if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
-    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade, receiverPreset);
-  }
-
-  let js: JointStiffnessResult | null = null;
-  if (clampedMaterial && clampLength > 0) {
-    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
-  }
-
-  const scatter = friction.scatter ?? 0.20;
-  const torqueMin = calculateTorque(preload, screw, {
-    ...friction,
-    muThread: friction.muThread * (1 - scatter),
-    muHead: friction.muHead * (1 - scatter),
-  }, bearingOD, bearingID);
-  const torqueMax = calculateTorque(preload, screw, {
-    ...friction,
-    muThread: friction.muThread * (1 + scatter),
-    muHead: friction.muHead * (1 + scatter),
-  }, bearingOD, bearingID);
-
-  const totalScatter = combineScatter(friction.scatter, tighteningMethod.processScatter);
-  const servicePreload = calculateServicePreload(
+  const computed = computeResults({
+    preload,
     torque,
     screw,
+    clampedMaterial,
+    tappedMaterial,
     friction,
-    totalScatter,
-    relaxationLossPct,
-    settlementMicrons,
-    js,
+    grade,
+    engagementLength,
+    clampLength,
+    clampLengthSplit,
+    assemblyType,
+    headWasher,
+    nutWasher,
+    nut,
     bearingOD,
     bearingID,
-  );
+    tighteningMethod,
+    relaxationLossPct,
+    settlementMicrons,
+    receiverPreset,
+    axialServiceLoad,
+    shearServiceLoad,
+    slipFriction,
+  });
 
-  const operatingState = js
-    ? calculateOperatingState({
-        servicePreload: servicePreload.service.preloadNominal,
-        axialLoad: axialServiceLoad,
-        shearLoad: shearServiceLoad,
-        loadFactor: js.loadFactor,
-        interfaceFriction: slipFriction,
-        screw,
-        grade,
-      })
-    : null;
+  const {
+    boltStress,
+    headSurfacePressure: sp,
+    nutSurfacePressure: spNut,
+    threadStripping: ts,
+    jointStiffness: js,
+    totalScatter,
+    torqueMin,
+    torqueMax,
+    servicePreload,
+    operatingState,
+  } = computed;
+
+  const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;
@@ -225,7 +200,8 @@ export default function Results({
     && tappedMaterial
     && !receiverPreset.recommendedCategories.includes(tappedMaterial.category);
 
-  const warnings: string[] = [];
+  const warnings: string[] = [...computed.validationWarnings];
+  const validationErrors = computed.validationErrors;
   if (boltStress.utilization > 90) {
     warnings.push('Bolt utilization exceeds 90% — consider reducing preload or upgrading grade.');
   }
@@ -283,6 +259,15 @@ export default function Results({
 
   return (
     <div className="space-y-4">
+      {validationErrors.length > 0 && (
+        <div className="card p-4" style={{ backgroundColor: '#fdecea', borderLeft: '4px solid #d52b1e' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#b42318' }}>Input Validation Errors</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#7a271a' }}>
+            {validationErrors.map((error, index) => <li key={index}>{error}</li>)}
+          </ul>
+        </div>
+      )}
+
       {warnings.length > 0 && (
         <div className="card p-4" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
           <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Warnings</h3>

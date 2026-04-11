@@ -178,6 +178,10 @@ The script outputs:
 
 ---
 
+## Model assumptions
+
+Detailed model assumptions, simplifications, and validation boundaries are documented in [docs/model-assumptions.md](docs/model-assumptions.md).
+
 ## Notes on accuracy
 
 This app stores all geometry internally in **millimetres**, including the inch fastener families. Inch thread sizes are represented with common UN geometry approximations suitable for early sizing and comparative engineering work.
