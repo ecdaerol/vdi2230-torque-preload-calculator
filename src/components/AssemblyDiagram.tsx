@@ -607,30 +607,10 @@ export default function AssemblyDiagram({
   // -----------------------------------------------------------------------
   return (
     <div className="card p-6">
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-          Assembly View
-        </h3>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: 'var(--info-bg)' }}>
-          {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
-        </span>
-      </div>
-      <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] items-start">
-        <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--info-bg)' }}>
-          {infoItems.map((item, index) => (
-            <div
-              key={`${item.label}-${item.value}`}
-              className="flex items-start gap-3 px-4 py-3"
-              style={{ borderTop: index === 0 ? 'none' : '1px solid var(--line)' }}
-            >
-              <span className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: item.fill, border: `1px solid ${item.stroke}` }} />
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{item.label}</div>
-                <div className="text-sm leading-snug" style={{ color: 'var(--ink)' }}>{item.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--ink)' }}>
+        Assembly View
+      </h3>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] items-start">
         <div className="overflow-x-auto flex justify-center">
           <svg
             viewBox={`0 0 ${VIEW_W} ${svgHeight}`}
@@ -709,6 +689,28 @@ export default function AssemblyDiagram({
             {/* ---- Dimension lines ---- */}
             {renderDimensions()}
           </svg>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--info-bg)' }}>
+            {infoItems.map((item, index) => (
+              <div
+                key={`${item.label}-${item.value}`}
+                className="flex items-start gap-3 px-4 py-3"
+                style={{ borderTop: index === 0 ? 'none' : '1px solid var(--line)' }}
+              >
+                <span className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: item.fill, border: `1px solid ${item.stroke}` }} />
+                <div className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{item.label}</div>
+                  <div className="text-sm leading-snug" style={{ color: 'var(--ink)' }}>{item.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: 'var(--info-bg)' }}>
+              {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
+            </span>
+          </div>
         </div>
       </div>
     </div>

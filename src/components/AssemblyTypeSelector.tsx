@@ -6,46 +6,41 @@ const assemblyOptions: { value: AssemblyType; label: string }[] = [
 ];
 
 function AssemblyModeIcon({ mode, active }: { mode: AssemblyType; active: boolean }) {
-  const sw = active ? 1.4 : 1.1;
+  const sw = active ? 1.5 : 1.15;
   const col = 'currentColor';
 
   if (mode === 'tapped-hole') {
-    // Cross-section: bolt going into a tapped plate
+    // Side-view: hex fastener threading directly into a tapped block
     return (
       <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
-        {/* Top plate (through-hole) */}
-        <rect x="6" y="12" width="14" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
-        <rect x="28" y="12" width="14" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Bottom plate (tapped — solid with threads) */}
-        <rect x="6" y="28" width="36" height="10" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Bolt shank */}
-        <rect x="21.5" y="6" width="5" height="30" rx="1" stroke={col} strokeWidth={sw} />
-        {/* Bolt head */}
-        <rect x="18" y="4" width="12" height="4" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Thread lines in tapped hole */}
-        <line x1="21.5" y1="30" x2="26.5" y2="30" stroke={col} strokeWidth={0.7} opacity={0.5} />
-        <line x1="21.5" y1="32.5" x2="26.5" y2="32.5" stroke={col} strokeWidth={0.7} opacity={0.5} />
-        <line x1="21.5" y1="35" x2="26.5" y2="35" stroke={col} strokeWidth={0.7} opacity={0.5} />
+        {/* Hex head (side view — flat top/bottom, angled sides) */}
+        <path d="M16 8 L18 6 L30 6 L32 8 L32 14 L30 16 L18 16 L16 14 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
+        {/* Shank */}
+        <rect x="20" y="16" width="8" height="10" stroke={col} strokeWidth={sw} />
+        {/* Tapped block */}
+        <rect x="8" y="26" width="32" height="16" rx="2" stroke={col} strokeWidth={sw} />
+        {/* Thread engagement lines */}
+        <line x1="20" y1="29" x2="28" y2="29" stroke={col} strokeWidth={0.75} opacity={0.45} />
+        <line x1="20" y1="32" x2="28" y2="32" stroke={col} strokeWidth={0.75} opacity={0.45} />
+        <line x1="20" y1="35" x2="28" y2="35" stroke={col} strokeWidth={0.75} opacity={0.45} />
+        <line x1="20" y1="38" x2="28" y2="38" stroke={col} strokeWidth={0.75} opacity={0.45} />
       </svg>
     );
   }
 
   if (mode === 'through-nut') {
-    // Cross-section: bolt through two plates with nut
+    // Side-view: bolt through a plate, nut below
     return (
       <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
-        {/* Top plate */}
-        <rect x="6" y="12" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
-        <rect x="28" y="12" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Bottom plate */}
-        <rect x="6" y="26" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
-        <rect x="28" y="26" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Bolt shank */}
-        <rect x="21.5" y="6" width="5" height="38" rx="1" stroke={col} strokeWidth={sw} />
-        {/* Bolt head */}
-        <rect x="18" y="4" width="12" height="4" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Nut (hex cross-section) */}
-        <path d="M17 40 L19 44 L29 44 L31 40 L29 40 L17 40Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
+        {/* Bolt head (hex side view) */}
+        <path d="M16 5 L18 3 L30 3 L32 5 L32 11 L30 13 L18 13 L16 11 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
+        {/* Shank through plate */}
+        <rect x="20" y="13" width="8" height="27" stroke={col} strokeWidth={sw} />
+        {/* Plate (through-hole — two halves) */}
+        <rect x="8" y="18" width="12" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
+        <rect x="28" y="18" width="12" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Nut (hex side view) */}
+        <path d="M16 40 L18 38 L30 38 L32 40 L32 44 L30 46 L18 46 L16 44 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
       </svg>
     );
   }
