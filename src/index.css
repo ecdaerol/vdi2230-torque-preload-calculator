@@ -15,6 +15,19 @@
     --warn: #fb8c00;
     --danger: #d52b1e;
     --shadow: rgba(0, 0, 0, 0.08);
+    --ok-bg: #e8f5e9;
+    --warn-bg: #fff3e0;
+    --danger-bg: #fbe9e7;
+    --na-bg: var(--bg);
+    --alert-bg: #fff8e1;
+    --alert-border: #ffa000;
+    --alert-heading: #e65100;
+    --alert-body: #4e342e;
+    --info-bg: #f3f4f6;
+    --info-border: #9ca3af;
+    --info-heading: #374151;
+    --info-body: #374151;
+    --bar-track: #eeeeee;
   }
 
   body {
@@ -118,7 +131,7 @@
 
   /* Footer */
   footer::after {
-    content: "Printed from VDI 2230 Torque & Preload Calculator";
+    content: "Printed from Fastener Joint Calculator";
     display: block;
     text-align: center;
     font-size: 8pt;
@@ -140,6 +153,19 @@
   --warn: #f59e0b;
   --danger: #ef4444;
   --shadow: rgba(0, 0, 0, 0.3);
+  --ok-bg: rgba(34,197,94,0.15);
+  --warn-bg: rgba(251,140,0,0.15);
+  --danger-bg: rgba(239,68,68,0.15);
+  --na-bg: var(--bg);
+  --alert-bg: rgba(251,140,0,0.08);
+  --alert-border: #ffa000;
+  --alert-heading: #fb8c00;
+  --alert-body: rgba(255,255,255,0.7);
+  --info-bg: rgba(255,255,255,0.04);
+  --info-border: rgba(255,255,255,0.15);
+  --info-heading: rgba(255,255,255,0.6);
+  --info-body: rgba(255,255,255,0.6);
+  --bar-track: rgba(255,255,255,0.1);
 }
 
 .embed-dark select,

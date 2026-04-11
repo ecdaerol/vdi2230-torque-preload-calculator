@@ -37,9 +37,9 @@ export default function JointDiagram({ preload, screw, material, clampLength, cl
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Joint Plot</h3>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>Bolt force</span>
-          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>Clamp force</span>
-          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: '#eef2ff', color: '#4f46e5' }}>Preload reference</span>
+          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--info-bg)', color: '#3b82f6' }}>Bolt force</span>
+          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--info-bg)', color: '#ef4444' }}>Clamp force</span>
+          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--info-bg)', color: '#6366f1' }}>Preload reference</span>
         </div>
       </div>
 

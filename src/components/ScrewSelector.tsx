@@ -69,7 +69,7 @@ export default function ScrewSelector({ value, onChange }: Props) {
     if (screw) onChange(screw);
   };
 
-  const selectClass = 'w-full px-3 py-2 text-sm bg-white border rounded-[10px] focus:outline-none focus:ring-2';
+  const selectClass = 'w-full px-3 py-2 text-sm bg-[var(--panel)] border rounded-[10px] focus:outline-none focus:ring-2';
   const selectStyle: React.CSSProperties = { borderColor: 'var(--line)' };
 
   const formatSizeOption = (screw: ScrewData): string => {

@@ -33,8 +33,8 @@ export default function MaterialSelector({ value, onChange }: Props) {
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, []);
 
-  const selectClass = 'w-full px-3 py-2 text-sm bg-white border rounded-[10px] focus:outline-none focus:ring-2';
-  const inputClass = 'w-full px-2 py-1 text-sm font-mono bg-white border rounded-[10px]';
+  const selectClass = 'w-full px-3 py-2 text-sm bg-[var(--panel)] border rounded-[10px] focus:outline-none focus:ring-2';
+  const inputClass = 'w-full px-2 py-1 text-sm font-mono bg-[var(--panel)] border rounded-[10px]';
   const fieldStyle: React.CSSProperties = { borderColor: 'var(--line)' };
 
   return (

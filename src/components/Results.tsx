@@ -53,10 +53,10 @@ function safeN(value: number, decimals: number): string {
 
 function StatusBadge({ status }: { status: 'ok' | 'warning' | 'danger' | 'na' }) {
   const styles: Record<string, React.CSSProperties> = {
-    ok: { backgroundColor: '#e8f5e9', color: '#067647' },
-    warning: { backgroundColor: '#fff3e0', color: '#fb8c00' },
-    danger: { backgroundColor: '#fbe9e7', color: '#d52b1e' },
-    na: { backgroundColor: '#f5f5f5', color: '#666666' },
+    ok: { backgroundColor: 'var(--ok-bg)', color: 'var(--ok)' },
+    warning: { backgroundColor: 'var(--warn-bg)', color: 'var(--warn)' },
+    danger: { backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' },
+    na: { backgroundColor: 'var(--na-bg)', color: 'var(--muted)' },
   };
   const labels = { ok: 'OK', warning: 'WARNING', danger: 'DANGER', na: 'N/A' };
   return (
@@ -284,18 +284,18 @@ export default function Results({
   return (
     <div className="space-y-4">
       {warnings.length > 0 && (
-        <div className="card p-4" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
-          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Warnings</h3>
-          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
+        <div className="card p-4" style={{ backgroundColor: 'var(--alert-bg)', borderLeft: '4px solid var(--alert-border)' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--alert-heading)' }}>Warnings</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: 'var(--alert-body)' }}>
             {warnings.map((warning, index) => <li key={index}>{warning}</li>)}
           </ul>
         </div>
       )}
 
       {disclaimers.length > 0 && (
-        <div className="card p-4" style={{ backgroundColor: '#f3f4f6', borderLeft: '4px solid #9ca3af' }}>
-          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#374151' }}>Notes</h3>
-          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#374151' }}>
+        <div className="card p-4" style={{ backgroundColor: 'var(--info-bg)', borderLeft: '4px solid var(--info-border)' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--info-heading)' }}>Notes</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: 'var(--info-body)' }}>
             {disclaimers.map((disclaimer, index) => <li key={index}>{disclaimer}</li>)}
           </ul>
         </div>
@@ -458,12 +458,12 @@ export default function Results({
       </div>
 
       {creepSensitive && (
-        <div className="card p-5" style={{ backgroundColor: '#fff8e1', borderLeft: '4px solid #ffa000' }}>
-          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#e65100' }}>Creep / Relaxation Watch</h3>
-          <p className="text-sm mb-2" style={{ color: '#4e342e' }}>
+        <div className="card p-5" style={{ backgroundColor: 'var(--alert-bg)', borderLeft: '4px solid var(--alert-border)' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--alert-heading)' }}>Creep / Relaxation Watch</h3>
+          <p className="text-sm mb-2" style={{ color: 'var(--alert-body)' }}>
             One or more selected materials are creep-sensitive. Service preload may continue to fall after initial settling, especially in polymers and printed parts.
           </p>
-          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: '#4e342e' }}>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: 'var(--alert-body)' }}>
             <li>Consider larger washers or support washers to reduce local compression.</li>
             <li>Use lower initial utilization if long-term preload retention matters.</li>
             <li>For production designs, validate preload retention with a time/temperature test.</li>
@@ -496,16 +496,16 @@ export default function Results({
               {safe(boltStress.utilization)}%
             </span>
           </div>
-          <div className="w-full h-2 rounded-full" style={{ backgroundColor: '#eeeeee' }}>
+          <div className="w-full h-2 rounded-full" style={{ backgroundColor: 'var(--bar-track)' }}>
             <div
               className="h-2 rounded-full transition-all"
               style={{
                 width: `${Math.min(boltStress.utilization, 100)}%`,
                 background: boltStress.utilization > 100
-                  ? 'linear-gradient(90deg, #ef5350, #d50000)'
+                  ? 'var(--danger)'
                   : boltStress.utilization > 90
-                    ? 'linear-gradient(90deg, #fb8c00, #e65100)'
-                    : 'linear-gradient(90deg, #66bb6a, #43a047)',
+                    ? 'var(--warn)'
+                    : 'var(--ok)',
               }}
             />
           </div>

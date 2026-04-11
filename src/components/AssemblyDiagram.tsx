@@ -93,11 +93,11 @@ export default function AssemblyDiagram({
   // ---- Empty state ----
   if (!screw) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="text-sm font-semibold mb-3 text-slate-800 dark:text-slate-200">
+      <div className="card p-6">
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--ink)' }}>
           Assembly Cross-Section
         </h3>
-        <div className="flex items-center justify-center h-64 text-slate-400 dark:text-slate-500 text-sm">
+        <div className="flex items-center justify-center h-64 text-sm" style={{ color: 'var(--muted)' }}>
           Select a screw to view the assembly diagram.
         </div>
       </div>
@@ -611,12 +611,12 @@ export default function AssemblyDiagram({
         <h3 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
           Assembly View
         </h3>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: '#f3f4f6' }}>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: 'var(--info-bg)' }}>
           {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
         </span>
       </div>
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] items-start">
-        <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: '#fafafa' }}>
+        <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--info-bg)' }}>
           {infoItems.map((item, index) => (
             <div
               key={`${item.label}-${item.value}`}
