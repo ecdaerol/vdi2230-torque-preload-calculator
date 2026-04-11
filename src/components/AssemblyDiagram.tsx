@@ -106,11 +106,12 @@ export default function AssemblyDiagram({
 
   // From here on `screw` is guaranteed non-null.
   const headStyle = classifyHead(screw);
+  const isStandoff = screw.type.toLowerCase().includes('standoff');
   const cx = VIEW_W / 2; // horizontal centre
 
   // ---- Stable schematic layout ----
-  // Keep the preview representative, but visually stable across size and length changes.
-  const clampH = 92;
+  // Standoffs have no clamped part — hex body sits directly on the threaded receiver.
+  const clampH = isStandoff ? 0 : 92;
   const engageH = assemblyType === 'through-nut' ? 44 : 58;
 
   const shankR = headStyle === 'set' ? 12 : 13;
@@ -136,7 +137,7 @@ export default function AssemblyDiagram({
       : headStyle === 'button'
         ? 16
         : headStyle === 'hex'
-          ? 18
+          ? (isStandoff ? 40 : 18)
           : headStyle === 'socket' || headStyle === 'shoulder'
             ? 24
             : 0;
@@ -554,14 +555,16 @@ export default function AssemblyDiagram({
     const dimX = plateL - 14;
     const elements: React.ReactNode[] = [];
 
-    // Clamp length
-    elements.push(
-      <DimLine
-        key="dim-clamp"
-        x={dimX} y1={clampTop} y2={clampBot}
-        label={`${clampLength.toFixed(1)} mm`} side="left"
-      />,
-    );
+    // Clamp length (not shown for standoffs)
+    if (clampH > 0) {
+      elements.push(
+        <DimLine
+          key="dim-clamp"
+          x={dimX} y1={clampTop} y2={clampBot}
+          label={`${clampLength.toFixed(1)} mm`} side="left"
+        />,
+      );
+    }
 
     // Engagement length
     elements.push(
@@ -626,8 +629,8 @@ export default function AssemblyDiagram({
             role="img"
             aria-label="Bolted joint assembly cross-section diagram"
           >
-        {/* ---- Clamped part ---- */}
-        {headStyle === 'countersunk'
+        {/* ---- Clamped part (skipped for standoffs) ---- */}
+        {clampH > 0 && (headStyle === 'countersunk'
           ? renderCountersunkClamp(
               clampTop,
               clampH,
@@ -641,7 +644,7 @@ export default function AssemblyDiagram({
               clampFill,
               clampStroke,
               clampedMaterial?.name ?? 'Clamped part',
-            )}
+            ))}
 
 
         {/* ---- Bottom / tapped part ---- */}
