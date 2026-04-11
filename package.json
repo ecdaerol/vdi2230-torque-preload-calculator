@@ -31,9 +31,10 @@
     "build:desktop": "npm run build && npx electron-builder --config electron-builder.yml",
     "prepublishOnly": "npm run build:lib"
   },
-  "dependencies": {},
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -41,6 +42,7 @@
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "eslint": "^10.2.0",
+    "jsdom": "^29.0.2",
     "postcss": "^8.4.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
