@@ -1,3 +1,5 @@
+import type { AssemblyLimit } from './useCalculatorState';
+
 interface Props {
   inputMode: 'utilization' | 'torque' | 'preload';
   onModeChange: (mode: 'utilization' | 'torque' | 'preload') => void;
@@ -9,6 +11,7 @@ interface Props {
   onPreloadChange: (value: number) => void;
   useImperial: boolean;
   snapPercent: (value: number) => number;
+  assemblyCapacity: AssemblyLimit;
 }
 
 export default function InputModeSelector({
@@ -16,7 +19,7 @@ export default function InputModeSelector({
   utilization, onUtilizationChange,
   torqueInput, onTorqueChange,
   preloadInput, onPreloadChange,
-  useImperial, snapPercent,
+  useImperial, snapPercent, assemblyCapacity,
 }: Props) {
   const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
   const fieldStyle: React.CSSProperties = { borderColor: 'var(--line)' };
@@ -36,7 +39,7 @@ export default function InputModeSelector({
             aria-label={mode === 'utilization' ? 'Set torque as percentage' : mode === 'torque' ? 'Enter torque value' : 'Enter preload value'}
             onClick={() => onModeChange(mode)}
           >
-            {mode === 'utilization' ? 'Torque %' : mode === 'torque' ? 'Torque' : 'Preload'}
+            {mode === 'utilization' ? 'Utilization' : mode === 'torque' ? 'Torque' : 'Preload'}
           </button>
         ))}
       </div>
@@ -44,8 +47,13 @@ export default function InputModeSelector({
       {inputMode === 'utilization' && (
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1" htmlFor="utilization-value" style={{ color: 'var(--ink)' }}>
-            Torque Level [%]
+            Assembly Utilization [%]
           </label>
+          {assemblyCapacity.mode !== 'none' && (
+            <div className="text-[10px] mb-2" style={{ color: 'var(--muted)' }}>
+              Limiting factor: <span className="font-semibold">{assemblyCapacity.mode}</span>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <input
               id="utilization-range"

@@ -49,6 +49,7 @@ export default function Calculator() {
             onPreloadChange={s.setPreloadInput}
             useImperial={s.useImperial}
             snapPercent={s.snapPercent}
+            assemblyCapacity={s.assemblyCapacity}
           />
 
           <div className="mb-4">

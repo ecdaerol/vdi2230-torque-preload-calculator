@@ -8,9 +8,16 @@ import { nutDatabase } from '../data/nuts';
 import { receiverPresets } from '../data/receivers';
 import { boltGrades, calculateTorque, calculatePreload } from '../calc/torque';
 import { tighteningMethods } from '../calc/preloadRealism';
+import { calculateSurfacePressure } from '../calc/surfacePressure';
+import { calculateThreadStripping } from '../calc/threadStripping';
 
 const NM_PER_LBFT = 1.355818;
 const N_PER_LBF = 4.44822;
+
+export interface AssemblyLimit {
+  preload: number;
+  mode: string;
+}
 
 export default function useCalculatorState() {
   const [utilization, setUtilization] = useState(70);
@@ -95,14 +102,58 @@ export default function useCalculatorState() {
 
   const effectiveBearingOD = headWasher ? headWasher.outerDiameter : undefined;
   const effectiveBearingID = headWasher ? headWasher.innerDiameter : undefined;
-  const fullProofTorque = screw
-    ? calculateTorque(grade.Rp02 * screw.stressArea, screw, friction, effectiveBearingOD, effectiveBearingID) : 0;
+
+  // ---------------------------------------------------------------------------
+  // Assembly capacity: the weakest-link preload across all failure modes.
+  // The slider % is relative to this, so 100% = the assembly limit.
+  // ---------------------------------------------------------------------------
+  const assemblyCapacity = useMemo((): AssemblyLimit => {
+    if (!screw) return { preload: 0, mode: 'none' };
+
+    const limits: AssemblyLimit[] = [];
+
+    // 1. Bolt yield
+    limits.push({ preload: grade.Rp02 * screw.stressArea, mode: 'Bolt yield' });
+
+    // 2. Head surface pressure
+    if (screw.hasHead && !screw.isCountersunk && clampedMaterial) {
+      const sp = calculateSurfacePressure(1, screw, clampedMaterial, effectiveBearingOD, effectiveBearingID);
+      if (sp.bearingArea > 0) {
+        limits.push({ preload: sp.limit * sp.bearingArea, mode: `Surface pressure (${clampedMaterial.name})` });
+      }
+    }
+
+    // 3. Nut-side surface pressure
+    if (assemblyType === 'through-nut' && tappedMaterial && nut) {
+      const nOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
+      const nID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
+      const spNut = calculateSurfacePressure(1, screw, tappedMaterial, nOD, nID);
+      if (spNut.bearingArea > 0) {
+        limits.push({ preload: spNut.limit * spNut.bearingArea, mode: `Surface pressure — nut side (${tappedMaterial.name})` });
+      }
+    }
+
+    // 4. Thread stripping
+    if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
+      const ts = calculateThreadStripping(1, screw, tappedMaterial, engagementLength, grade, receiverPreset);
+      if (ts.strippingForce > 0 && isFinite(ts.strippingForce)) {
+        limits.push({ preload: ts.strippingForce, mode: `Thread stripping (${tappedMaterial.name})` });
+      }
+    }
+
+    return limits.reduce((min, cur) => cur.preload < min.preload ? cur : min);
+  }, [screw, grade, clampedMaterial, tappedMaterial, assemblyType, nut, nutWasher,
+      effectiveBearingOD, effectiveBearingID, engagementLength, receiverPreset]);
+
+  // Torque corresponding to 100% assembly capacity
+  const fullCapacityTorque = screw
+    ? calculateTorque(assemblyCapacity.preload, screw, friction, effectiveBearingOD, effectiveBearingID) : 0;
 
   let preload = 0;
   let torque = 0;
   if (screw) {
     if (inputMode === 'utilization' && utilization > 0) {
-      torque = (utilization / 100) * fullProofTorque;
+      torque = (utilization / 100) * fullCapacityTorque;
       preload = calculatePreload(torque, screw, friction, effectiveBearingOD, effectiveBearingID);
     } else if (inputMode === 'torque' && torqueInput > 0) {
       const m = useImperial ? torqueInput * NM_PER_LBFT : torqueInput;
@@ -141,5 +192,6 @@ export default function useCalculatorState() {
     clampLength, setClampLength, clampLengthSplit, setClampLengthSplit,
     preload, torque, axialServiceLoad, shearServiceLoad,
     effectiveBearingOD, effectiveBearingID,
+    assemblyCapacity,
   };
 }
