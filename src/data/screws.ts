@@ -267,6 +267,26 @@ const inchSocketHead: Record<string, [number, number, string]> = {
 
 const inchHexSizes = ['#10-24 UNC', '1/4-20 UNC', '5/16-18 UNC', '3/8-16 UNC', '#10-32 UNF', '1/4-28 UNF', '5/16-24 UNF', '3/8-24 UNF'] as const;
 
+// ---------------------------------------------------------------------------
+// Hex standoff F/M — male end acts as screw, hex body is the bearing head
+// ---------------------------------------------------------------------------
+const standoffMetricSizes = ['M2', 'M2.5', 'M3', 'M4', 'M5'] as const;
+const standoffMetricHead: Record<string, [number, number]> = {
+  'M2':   [3.2,  1.6],
+  'M2.5': [5.0,  2.0],
+  'M3':   [5.5,  2.4],
+  'M4':   [7.0,  3.2],
+  'M5':   [8.0,  4.0],
+};
+
+const standoffInchSizes = ['#4-40 UNC', '#6-32 UNC', '#8-32 UNC', '#10-24 UNC'] as const;
+const standoffInchHead: Record<string, [number, number]> = {
+  '#4-40 UNC':  [4.78, 2.4],
+  '#6-32 UNC':  [6.35, 3.2],
+  '#8-32 UNC':  [6.35, 3.2],
+  '#10-24 UNC': [7.94, 4.0],
+};
+
 const inchHexHead: Record<string, [number, number]> = {
   '#10-24 UNC': [inch(0.375), inch(0.120)],
   '1/4-20 UNC': [inch(0.4375), inch(0.163)],
@@ -319,6 +339,15 @@ export const screwDatabase: ScrewData[] = [
   ...inchHexSizes.map((size) => {
     const [headDiameter, headHeight] = inchHexHead[size];
     return makeScrew(threadData[size], 'Inch hex', 'ASME B18.2.1', 'Hex cap screw', headDiameter, headHeight, 'Hex', `${headDiameter.toFixed(1)} AF`, true, false);
+  }),
+  // Hex standoff F/M — male thread end (tightened into tapped hole or nut)
+  ...standoffMetricSizes.map((size) => {
+    const [headDiameter, headHeight] = standoffMetricHead[size];
+    return makeScrew(threadData[size], 'Standoffs', 'Hex standoff F/M', 'Hex standoff, male-female', headDiameter, headHeight, 'Hex', `${headDiameter.toFixed(1)} AF`, true, false);
+  }),
+  ...standoffInchSizes.map((size) => {
+    const [headDiameter, headHeight] = standoffInchHead[size];
+    return makeScrew(threadData[size], 'Standoffs', 'Hex standoff F/M', 'Hex standoff, male-female', headDiameter, headHeight, 'Hex', `${headDiameter.toFixed(1)} AF`, true, false);
   }),
 ].sort((a, b) => {
   if (a.threadSystem !== b.threadSystem) return a.threadSystem.localeCompare(b.threadSystem);

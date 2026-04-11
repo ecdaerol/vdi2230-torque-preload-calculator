@@ -55,7 +55,7 @@ function classifyHead(screw: ScrewData): HeadStyle {
   const typ = screw.type.toLowerCase();
   if (std.includes('4026') || typ.includes('set screw') || typ.includes('grub')) return 'set';
   if (std.includes('7379') || typ.includes('shoulder')) return 'shoulder';
-  if (typ.includes('hex head') || typ.includes('hex cap') || typ.includes('hex bolt')) return 'hex';
+  if (typ.includes('hex head') || typ.includes('hex cap') || typ.includes('hex bolt') || typ.includes('standoff')) return 'hex';
   if (typ.includes('button')) return 'button';
   if (std.includes('4762') || typ.includes('socket head') || typ.includes('cap screw')) return 'socket';
   if (std.includes('14581') || typ.includes('countersunk') || typ.includes('flat head')) return 'countersunk';
@@ -167,9 +167,8 @@ export default function AssemblyDiagram({
   const clampTop = bodyStart;
   const clampBot = clampTop + clampH;
 
-  let tappedTop = 0;
-  let tappedBot = 0;
-
+  const tappedTop = clampBot;
+  const tappedBot = tappedTop + engageH;
 
   // Nut / nut-washer positions (through-nut only)
   const nutWasherTop = assemblyType === 'through-nut' ? tappedBot + 2 : 0;

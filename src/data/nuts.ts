@@ -120,6 +120,18 @@ export const nutDatabase: NutData[] = [
   makeNut('inch', 'Inch hex', 'ASME B18.2.2', 'Hex nut', '5/16-24', inch(0.500), inch(0.266), inch(0.500)),
   makeNut('inch', 'Inch hex', 'ASME B18.2.2', 'Hex nut', '3/8-16', inch(0.5625), inch(0.328), inch(0.5625)),
   makeNut('inch', 'Inch hex', 'ASME B18.2.2', 'Hex nut', '3/8-24', inch(0.5625), inch(0.328), inch(0.5625)),
+
+  // Hex standoff F/M — female end (used as threaded receiver for screws)
+  makeNut('metric', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', 'M2', 3.2, 3.0, 3.2),
+  makeNut('metric', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', 'M2.5', 5.0, 4.0, 5.0),
+  makeNut('metric', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', 'M3', 5.5, 5.0, 5.5),
+  makeNut('metric', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', 'M4', 7.0, 6.0, 7.0),
+  makeNut('metric', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', 'M5', 8.0, 8.0, 8.0),
+
+  makeNut('inch', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', '#4-40', 4.78, 4.78, 4.78),
+  makeNut('inch', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', '#6-32', 6.35, 6.35, 6.35),
+  makeNut('inch', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', '#8-32', 6.35, 6.35, 6.35),
+  makeNut('inch', 'Standoffs', 'Hex standoff F/M', 'Hex standoff female end', '#10-24', 7.94, 7.94, 7.94),
 ].sort((a, b) => {
   if (a.threadSystem !== b.threadSystem) return a.threadSystem.localeCompare(b.threadSystem);
   if (a.family !== b.family) return a.family.localeCompare(b.family);
