@@ -28,8 +28,18 @@ export interface ComputeResultsInput {
   headWasher: WasherData | null;
   nutWasher: WasherData | null;
   nut: NutData | null;
-  bearingOD?: number;
-  bearingID?: number;
+  /** Head-side bearing OD (from washer or screw head) */
+  headBearingOD?: number;
+  /** Head-side bearing ID (from washer or hole) */
+  headBearingID?: number;
+  /** Nut-side bearing OD (from washer or nut) */
+  nutBearingOD?: number;
+  /** Nut-side bearing ID (from washer or hole) */
+  nutBearingID?: number;
+  /** Torque-side bearing OD (depends on turnedSide) */
+  torqueBearingOD?: number;
+  /** Torque-side bearing ID (depends on turnedSide) */
+  torqueBearingID?: number;
   tighteningMethod: TighteningMethod;
   relaxationLossPct: number;
   settlementMicrons: number;
@@ -37,6 +47,8 @@ export interface ComputeResultsInput {
   axialServiceLoad: number;
   shearServiceLoad: number;
   slipFriction: number;
+  /** Number of slip interfaces (1 for tapped hole, ≥1 for through-bolt) */
+  interfaceCount: number;
 }
 
 export interface ComputeResultsOutput {
@@ -71,30 +83,37 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
 
   const boltStress = calculateBoltStress(input.preload, input.screw, input.grade, input.friction);
 
+  // Head-side surface pressure
   const hasHeadSurface = input.screw.hasHead && !input.screw.isCountersunk && input.clampedMaterial;
   const headSurfacePressure = hasHeadSurface
     ? calculateSurfacePressure(
         input.preload,
         input.screw,
         input.clampedMaterial!,
-        input.headWasher ? input.headWasher.outerDiameter : input.bearingOD,
-        input.headWasher ? input.headWasher.innerDiameter : input.bearingID,
+        input.headBearingOD,
+        input.headBearingID,
       )
     : null;
 
+  // Nut-side surface pressure (through-bolt only)
   const nutSurfacePressure = input.assemblyType === 'through-nut' && input.tappedMaterial && input.nut
     ? calculateSurfacePressure(
         input.preload,
         input.screw,
         input.tappedMaterial,
-        input.nutWasher ? input.nutWasher.outerDiameter : input.nut.bearingDiameter,
-        input.nutWasher ? input.nutWasher.innerDiameter : input.screw.holeDiameter,
+        input.nutBearingOD,
+        input.nutBearingID,
       )
     : null;
 
+  // Thread stripping (tapped-hole only)
   const threadStripping = input.assemblyType !== 'through-nut' && input.tappedMaterial && input.engagementLength > 0
     ? calculateThreadStripping(input.preload, input.screw, input.tappedMaterial, input.engagementLength, input.grade, input.receiverPreset)
     : null;
+
+  // FIX #3: use actual bearing diameter (considering washers) for joint stiffness
+  const headStiffnessOD = input.headBearingOD ?? input.screw.headDiameter;
+  const bottomStiffnessOD = input.nutBearingOD ?? input.screw.headDiameter;
 
   const jointStiffness = input.clampedMaterial && input.clampLength > 0
     ? calculateJointStiffness(
@@ -105,9 +124,12 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
         input.grade.name,
         input.tappedMaterial,
         input.clampLengthSplit,
+        headStiffnessOD,
+        bottomStiffnessOD,
       )
     : null;
 
+  // Torque scatter band
   const scatter = input.friction.scatter ?? 0.2;
   const torqueMin = calculateTorque(
     input.preload,
@@ -117,8 +139,8 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
       muThread: input.friction.muThread * (1 - scatter),
       muHead: input.friction.muHead * (1 - scatter),
     },
-    input.bearingOD,
-    input.bearingID,
+    input.torqueBearingOD,
+    input.torqueBearingID,
   );
 
   const torqueMax = calculateTorque(
@@ -129,8 +151,8 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
       muThread: input.friction.muThread * (1 + scatter),
       muHead: input.friction.muHead * (1 + scatter),
     },
-    input.bearingOD,
-    input.bearingID,
+    input.torqueBearingOD,
+    input.torqueBearingID,
   );
 
   const totalScatter = combineScatter(input.friction.scatter, input.tighteningMethod.processScatter);
@@ -143,10 +165,11 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
     input.relaxationLossPct,
     input.settlementMicrons,
     jointStiffness,
-    input.bearingOD,
-    input.bearingID,
+    input.torqueBearingOD,
+    input.torqueBearingID,
   );
 
+  // FIX #5: pass interfaceCount to operating state
   const operatingState = jointStiffness
     ? calculateOperatingState({
         servicePreload: servicePreload.service.preloadNominal,
@@ -154,6 +177,7 @@ export function computeResults(input: ComputeResultsInput): ComputeResultsOutput
         shearLoad: input.shearServiceLoad,
         loadFactor: jointStiffness.loadFactor,
         interfaceFriction: input.slipFriction,
+        interfaceCount: input.interfaceCount,
         screw: input.screw,
         grade: input.grade,
       })
