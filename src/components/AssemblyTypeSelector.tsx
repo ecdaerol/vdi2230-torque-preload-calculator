@@ -5,46 +5,45 @@ const assemblyOptions: { value: AssemblyType; label: string }[] = [
   { value: 'through-nut', label: 'Nut & Bolt' },
 ];
 
-function AssemblyModeIcon({ mode, active }: { mode: AssemblyType; active: boolean }) {
-  const sw = active ? 1.5 : 1.15;
+function AssemblyModeIcon({ mode }: { mode: AssemblyType }) {
+  // Minimal engineering cross-section silhouettes, 24×24 viewBox
   const col = 'currentColor';
 
   if (mode === 'tapped-hole') {
-    // Side-view: hex fastener threading directly into a tapped block
     return (
-      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
-        {/* Hex head (side view — flat top/bottom, angled sides) */}
-        <path d="M16 8 L18 6 L30 6 L32 8 L32 14 L30 16 L18 16 L16 14 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
+      <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke={col} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        {/* Bolt head */}
+        <rect x="8" y="2" width="8" height="3" rx="0.8" />
         {/* Shank */}
-        <rect x="20" y="16" width="8" height="10" stroke={col} strokeWidth={sw} />
+        <line x1="10" y1="5" x2="10" y2="14" />
+        <line x1="14" y1="5" x2="14" y2="14" />
         {/* Tapped block */}
-        <rect x="8" y="26" width="32" height="16" rx="2" stroke={col} strokeWidth={sw} />
-        {/* Thread engagement lines */}
-        <line x1="20" y1="29" x2="28" y2="29" stroke={col} strokeWidth={0.75} opacity={0.45} />
-        <line x1="20" y1="32" x2="28" y2="32" stroke={col} strokeWidth={0.75} opacity={0.45} />
-        <line x1="20" y1="35" x2="28" y2="35" stroke={col} strokeWidth={0.75} opacity={0.45} />
-        <line x1="20" y1="38" x2="28" y2="38" stroke={col} strokeWidth={0.75} opacity={0.45} />
+        <rect x="4" y="10" width="16" height="12" rx="1" />
+        {/* Thread marks inside block */}
+        <line x1="10.5" y1="13" x2="13.5" y2="13" strokeWidth="0.8" opacity="0.5" />
+        <line x1="10.5" y1="15.5" x2="13.5" y2="15.5" strokeWidth="0.8" opacity="0.5" />
+        <line x1="10.5" y1="18" x2="13.5" y2="18" strokeWidth="0.8" opacity="0.5" />
       </svg>
     );
   }
 
   if (mode === 'through-nut') {
-    // Side-view: bolt through a plate, nut below
     return (
-      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
-        {/* Bolt head (hex side view) */}
-        <path d="M16 5 L18 3 L30 3 L32 5 L32 11 L30 13 L18 13 L16 11 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
-        {/* Shank through plate */}
-        <rect x="20" y="13" width="8" height="27" stroke={col} strokeWidth={sw} />
-        {/* Plate (through-hole — two halves) */}
-        <rect x="8" y="18" width="12" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
-        <rect x="28" y="18" width="12" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
-        {/* Nut (hex side view) */}
-        <path d="M16 40 L18 38 L30 38 L32 40 L32 44 L30 46 L18 46 L16 44 Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
+      <svg width="44" height="44" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke={col} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+        {/* Bolt head */}
+        <rect x="8" y="1" width="8" height="3" rx="0.8" />
+        {/* Shank */}
+        <line x1="10" y1="4" x2="10" y2="19" />
+        <line x1="14" y1="4" x2="14" y2="19" />
+        {/* Plate — left half */}
+        <rect x="4" y="8" width="6" height="8" rx="0.8" />
+        {/* Plate — right half */}
+        <rect x="14" y="8" width="6" height="8" rx="0.8" />
+        {/* Nut */}
+        <rect x="7.5" y="19" width="9" height="3.5" rx="0.8" />
       </svg>
     );
   }
-
 }
 
 interface Props {
@@ -73,7 +72,7 @@ export default function AssemblyTypeSelector({ assemblyType, onChange, disableNu
             aria-label={`${option.label} assembly`}
             onClick={() => !disabled && onChange(option.value)}
           >
-            <span className="leading-none" aria-hidden="true"><AssemblyModeIcon mode={option.value} active={!disabled && assemblyType === option.value} /></span>
+            <span className="leading-none" aria-hidden="true"><AssemblyModeIcon mode={option.value} /></span>
             <span className="text-[13px] font-semibold leading-tight text-center">{option.label}</span>
           </button>
         );
