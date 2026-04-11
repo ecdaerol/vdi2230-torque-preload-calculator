@@ -114,7 +114,8 @@ export default function Results(props: Props) {
 
   const { boltStress, headSurfacePressure: sp, nutSurfacePressure: spNut,
     threadStripping: ts, jointStiffness: js, totalScatter,
-    torqueMin, torqueMax, servicePreload, operatingState } = computed;
+    torqueMin, torqueMax, servicePreload, operatingState,
+    validationErrors, validationWarnings } = computed;
 
   const units = getUnitFactors(useImperial);
   const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && !!clampedMaterial;
@@ -132,7 +133,7 @@ export default function Results(props: Props) {
     && !receiverPreset.recommendedCategories.includes(tappedMaterial.category);
 
   // --- Build warnings ---
-  const warnings: string[] = [];
+  const warnings: string[] = [...validationWarnings];
   if (boltStress.utilization > 90) warnings.push('Bolt utilization exceeds 90% — consider reducing preload or upgrading grade.');
   if (friction.muThread < 0.04 || friction.muHead < 0.04) warnings.push('Friction coefficient below 0.04 — results may be unreliable.');
   if (engagementLength > 0 && engagementLength < screw.pitch) warnings.push(`Thread engagement (${engagementLength.toFixed(1)} mm) < one pitch — stripping risk is very high.`);
@@ -157,6 +158,14 @@ export default function Results(props: Props) {
   // --- Render ---
   return (
     <div className="space-y-4">
+      {validationErrors.length > 0 && (
+        <div className="card p-4" style={{ backgroundColor: 'var(--danger-bg)', borderLeft: '4px solid var(--danger)' }}>
+          <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--danger)' }}>Input Errors</h3>
+          <ul className="text-sm list-disc list-inside space-y-0.5" style={{ color: 'var(--danger)' }}>
+            {validationErrors.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </div>
+      )}
       {warnings.length > 0 && (
         <div className="card p-4" style={{ backgroundColor: 'var(--alert-bg)', borderLeft: '4px solid var(--alert-border)' }}>
           <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--alert-heading)' }}>Warnings</h3>

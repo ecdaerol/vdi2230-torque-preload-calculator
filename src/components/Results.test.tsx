@@ -11,8 +11,8 @@ const imperialUnits = getUnitFactors(true);
 
 describe('TorquePreloadCard', () => {
   const servicePreload = {
-    initial: { preloadNominal: 10000, preloadMin: 8000, preloadMax: 12000 },
-    service: { preloadNominal: 9000, preloadMin: 7200, preloadMax: 10800 },
+    initial: { scatter: 0.2, preloadNominal: 10000, preloadMin: 8000, preloadMax: 12000 },
+    service: { scatter: 0.2, preloadNominal: 9000, preloadMin: 7200, preloadMax: 10800 },
     relaxationLoss: 500,
     embeddingLoss: 500,
     equivalentStiffness: 200000,
@@ -53,10 +53,11 @@ describe('BoltStressCard', () => {
     axialStress: 400,
     torsionalStress: 120,
     vonMisesStress: 450,
+    Rp02: 640,
     utilization: 75,
   };
 
-  const grade = { name: '8.8', Rp02: 640, Rm: 800, minArea: 0 };
+  const grade = { name: '8.8', Rp02: 640, tensileStrength: 800 };
 
   it('renders stress values and utilization bar', () => {
     render(
@@ -70,7 +71,7 @@ describe('BoltStressCard', () => {
   });
 
   it('shows danger when utilization > 100%', () => {
-    const overloaded = { ...boltStress, utilization: 110, vonMisesStress: 700 };
+    const overloaded = { ...boltStress, utilization: 110, vonMisesStress: 700, Rp02: 640 };
     render(
       <BoltStressCard boltStress={overloaded} grade={grade}
         inputMode="torque" utilization={100} units={metricUnits} />
@@ -135,7 +136,8 @@ describe('OperatingStateCard', () => {
       clampLoadShare: 0.9,
       isSeparated: false,
       willSlip: false,
-      interfaceCount: 1,
+      clampForceLoss: 500,
+      shearArea: 20.1,
     };
     render(
       <OperatingStateCard operatingState={os} axialServiceLoad={5000}
