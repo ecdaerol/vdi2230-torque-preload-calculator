@@ -27,16 +27,22 @@ export default function Calculator() {
   const fieldStyle: React.CSSProperties = { borderColor: 'var(--line)' };
 
   return (
+    <div className="space-y-6">
+    <AssemblyDiagram
+      screw={s.screw}
+      clampedMaterial={s.clampedMaterial}
+      tappedMaterial={s.tappedMaterial}
+      clampLength={s.clampLength}
+      engagementLength={s.engagementLength}
+      assemblyType={s.assemblyType}
+      headWasher={s.headWasher}
+      nutWasher={s.nutWasher}
+      nut={s.nut}
+    />
     <div className="flex flex-col lg:flex-row gap-6">
       <div className="w-full lg:w-[440px] lg:flex-shrink-0 space-y-4">
         <div className="card p-6">
           <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--ink)' }}>Input Parameters</h3>
-
-          <AssemblyTypeSelector
-            assemblyType={s.assemblyType}
-            onChange={s.setAssemblyType}
-            disableNutAndBolt={s.setScrewOnlyModes}
-          />
 
           <InputModeSelector
             inputMode={s.inputMode}
@@ -237,21 +243,16 @@ export default function Calculator() {
               Imperial (lbf, lb·ft)
             </button>
           </div>
+
+          <AssemblyTypeSelector
+            assemblyType={s.assemblyType}
+            onChange={s.setAssemblyType}
+            disableNutAndBolt={s.setScrewOnlyModes}
+          />
         </div>
       </div>
 
       <div className="flex-1 min-w-0 space-y-4">
-        <AssemblyDiagram
-          screw={s.screw}
-          clampedMaterial={s.clampedMaterial}
-          tappedMaterial={s.tappedMaterial}
-          clampLength={s.clampLength}
-          engagementLength={s.engagementLength}
-          assemblyType={s.assemblyType}
-          headWasher={s.headWasher}
-          nutWasher={s.nutWasher}
-          nut={s.nut}
-        />
         <Results
           inputMode={s.inputMode}
           utilization={s.utilization}
@@ -290,6 +291,7 @@ export default function Calculator() {
           secondMaterial={s.tappedMaterial}
         />
       </div>
+    </div>
     </div>
   );
 }
