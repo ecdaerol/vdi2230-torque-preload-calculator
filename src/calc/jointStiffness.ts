@@ -1,10 +1,15 @@
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 
+/** VDI 2230 joint stiffness model results. */
 export interface JointStiffnessResult {
-  boltStiffness: number;    // N/mm
-  clampStiffness: number;   // N/mm
-  loadFactor: number;       // n = k_b / (k_b + k_c)
+  /** Bolt stiffness k_b (N/mm). */
+  boltStiffness: number;
+  /** Clamp stiffness k_c (N/mm) from pressure-cone model. */
+  clampStiffness: number;
+  /** Load introduction factor n = k_b / (k_b + k_c). */
+  loadFactor: number;
+  /** Data points for the bolt/clamp force-deformation diagram. */
   diagramData: { deformation: number; boltForce: number; clampForce: number }[];
 }
 
@@ -42,7 +47,23 @@ function coneStiffness(
   return Ec * dw * Math.PI / 2;
 }
 
-// FIX #3: accept actual bearing geometry instead of hardcoding screw.headDiameter
+/**
+ * Calculate bolt and clamp stiffness per VDI 2230 pressure-cone model.
+ *
+ * Supports single-material and two-layer clamp stacks. When `secondMaterial`
+ * and `clampLengthSplit` are provided, two cones are computed in series.
+ *
+ * @param preload - Assembly preload F_V (N)
+ * @param screw - Fastener geometry
+ * @param material - Top (or only) clamped material
+ * @param clampLength - Total clamp length (mm)
+ * @param gradeName - Bolt grade name (determines E_bolt)
+ * @param secondMaterial - Optional bottom-layer material
+ * @param clampLengthSplit - Top-layer thickness (mm) when using two materials
+ * @param headBearingOD - Head-side bearing OD override (mm), e.g. washer OD
+ * @param bottomBearingOD - Nut-side bearing OD override (mm)
+ * @returns Stiffness values and force-deformation diagram data
+ */
 export function calculateJointStiffness(
   preload: number,
   screw: ScrewData,

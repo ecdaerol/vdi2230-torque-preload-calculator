@@ -3,17 +3,29 @@ import { MaterialData } from '../data/materials';
 import { ReceiverPreset, receiverPresets } from '../data/receivers';
 import { BoltGrade } from './torque';
 
+/** Results of VDI 2230 thread stripping analysis. */
 export interface ThreadStrippingResult {
-  internalStrippingForce: number;   // N — nut/tapped material strips
-  externalStrippingForce: number;   // N — bolt thread strips (Infinity if no grade)
+  /** Internal (nut/tapped hole) stripping force (N). */
+  internalStrippingForce: number;
+  /** External (bolt thread) stripping force (N). Infinity if no grade provided. */
+  externalStrippingForce: number;
+  /** Which mode governs: internal or external thread stripping. */
   criticalMode: 'internal' | 'external';
-  strippingForce: number;           // N — min of internal/external
+  /** Governing stripping force — min of internal and external (N). */
+  strippingForce: number;
+  /** Safety factor against thread stripping: F_strip / F_preload. */
   safetyFactor: number;
-  minEngagementLength: number;      // mm (for SF = 1.5, based on governing mode)
-  shearArea: number;                // mm² (internal shear area)
-  engagementFactor: number;         // C_int
+  /** Minimum engagement length for SF ≥ 1.5, based on governing mode (mm). */
+  minEngagementLength: number;
+  /** Internal thread shear area (mm²). */
+  shearArea: number;
+  /** Internal thread engagement factor C_int. */
+  engagementFactor: number;
+  /** Receiver capacity factor applied to internal stripping. */
   receiverFactor: number;
+  /** Human-readable label for the receiver type. */
   receiverLabel: string;
+  /** Status: ok (SF ≥ 1.5), warning (1.0–1.5), danger (< 1.0). */
   status: 'ok' | 'warning' | 'danger';
 }
 
@@ -21,6 +33,21 @@ function getDefaultReceiver(): ReceiverPreset {
   return receiverPresets[0];
 }
 
+/**
+ * Calculate thread stripping safety per VDI 2230.
+ *
+ * Evaluates both internal (nut/tapped material) and external (bolt thread)
+ * stripping and reports the governing mode. Computes minimum engagement
+ * length for a safety factor of 1.5.
+ *
+ * @param preload - Assembly preload (N)
+ * @param screw - Fastener geometry
+ * @param material - Tapped-hole or nut material
+ * @param engagementLength - Thread engagement depth (mm)
+ * @param grade - Bolt grade (optional; enables external stripping check)
+ * @param receiver - Receiver type preset (affects internal capacity factor)
+ * @returns Thread stripping analysis results
+ */
 export function calculateThreadStripping(
   preload: number,
   screw: ScrewData,

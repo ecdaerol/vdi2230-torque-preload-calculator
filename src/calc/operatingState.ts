@@ -1,36 +1,71 @@
 import type { ScrewData } from '../data/screws';
 import type { BoltGrade } from './torque';
 
+/** Input parameters for operating-state analysis under external loads. */
 export interface OperatingStateInput {
+  /** Service preload after relaxation and embedding losses (N). */
   servicePreload: number;
+  /** External axial service load (N). Positive = bolt-tensioning direction. */
   axialLoad: number;
+  /** External transverse (shear) service load (N). */
   shearLoad: number;
+  /** Load introduction factor n from stiffness model. */
   loadFactor: number;
+  /** Friction coefficient at the clamped interface for slip checks. */
   interfaceFriction: number;
-  interfaceCount: number;       // FIX #5: number of slip interfaces (default 1)
+  /** Number of friction interfaces for slip resistance (≥ 1). */
+  interfaceCount: number;
+  /** Fastener geometry. */
   screw: ScrewData;
+  /** Bolt material grade (for shear allowable). */
   grade: BoltGrade;
 }
 
+/** Results of VDI 2230 operating-state evaluation. */
 export interface OperatingStateResult {
+  /** Bolt's share of external axial load: n. */
   boltLoadShare: number;
+  /** Clamp's share of external axial load: 1 − n. */
   clampLoadShare: number;
+  /** Additional bolt force from axial load (N). */
   additionalBoltLoad: number;
+  /** Reduction in clamp force due to axial load (N). */
   clampForceLoss: number;
+  /** Remaining clamp force under service load (N). Zero if separated. */
   remainingClampForce: number;
+  /** Axial load that would cause joint separation (N). */
   separationLoad: number;
+  /** Separation safety margin: F_sep / F_axial. */
   separationMargin: number;
+  /** Whether the joint is predicted to separate. */
   isSeparated: boolean;
+  /** Total bolt force under operating load (N). */
   boltForceUnderAxialLoad: number;
+  /** Friction-based transverse slip resistance (N). */
   availableSlipResistance: number;
+  /** Slip safety factor: slip resistance / shear load. */
   slipSafetyFactor: number;
+  /** Whether joint is predicted to slip. */
   willSlip: boolean;
+  /** Bolt shear cross-section area at the shear plane (mm²). */
   shearArea: number;
+  /** Simple shear stress in bolt (MPa). */
   shearStress: number;
+  /** Shear allowable = 0.58 × Rp0.2 (MPa). */
   shearAllowable: number;
+  /** Bolt shear safety factor: allowable / actual. */
   shearSafetyFactor: number;
 }
 
+/**
+ * Evaluate operating state of a bolted joint under external axial and shear loads.
+ *
+ * Computes separation margin, slip resistance, and bolt shear per VDI 2230.
+ * Uses the load introduction factor from the stiffness model to split
+ * external axial load between bolt and clamp.
+ *
+ * @returns Full operating-state assessment
+ */
 export function calculateOperatingState({
   servicePreload,
   axialLoad,

@@ -1,11 +1,17 @@
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 
+/** Surface pressure check result for bolt head or nut bearing face. */
 export interface SurfacePressureResult {
-  pressure: number;       // MPa
-  limit: number;          // MPa (material yield)
+  /** Actual surface pressure under the bearing face (MPa). */
+  pressure: number;
+  /** Material compressive yield limit (MPa). */
+  limit: number;
+  /** Safety factor: limit / pressure. */
   safetyFactor: number;
-  bearingArea: number;    // mm²
+  /** Annular bearing area (mm²). */
+  bearingArea: number;
+  /** Status: ok (SF ≥ 1.5), warning (1.0–1.5), danger (< 1.0). */
   status: 'ok' | 'warning' | 'danger';
 }
 

@@ -200,6 +200,35 @@ For critical joints, always verify:
 
 ---
 
+## Library API
+
+The calculation engine is available as a standalone npm package for integration into other tools:
+
+```bash
+npm install @ecdaerol/fastener-torque-calculator
+```
+
+```ts
+import { calculateTorque, calculateBoltStress, boltGrades } from '@ecdaerol/fastener-torque-calculator';
+import { computeResults } from '@ecdaerol/fastener-torque-calculator';
+```
+
+**Key modules:**
+
+| Module | Purpose |
+|--------|---------|
+| `torque` | VDI 2230 torque ↔ preload, bolt stress, utilization |
+| `preloadRealism` | Scatter bands, relaxation, embedding losses |
+| `jointStiffness` | Pressure-cone stiffness, load factor |
+| `operatingState` | Separation, slip, bolt shear under service loads |
+| `surfacePressure` | Head/nut bearing surface pressure |
+| `threadStripping` | Internal/external stripping, min engagement |
+| `computeResults` | Orchestration — runs all checks in one call |
+
+Generate full API docs locally with `npm run docs` (output in `docs/`).
+
+---
+
 ## License
 
 MIT
