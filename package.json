@@ -27,7 +27,7 @@
     "test": "vitest run",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
+    "build:lib": "tsc -p tsconfig.lib.json",
     "build:desktop": "npm run build && npx electron-builder --config electron-builder.yml",
     "prepublishOnly": "npm run build:lib",
     "docs": "typedoc --out docs src/calc/torque.ts src/calc/jointStiffness.ts src/calc/operatingState.ts src/calc/preloadRealism.ts src/calc/surfacePressure.ts src/calc/threadStripping.ts src/domain/useCase/computeResults.ts src/data/screws.ts src/data/materials.ts src/data/friction.ts src/data/washers.ts src/data/nuts.ts src/data/receivers.ts --name \"Fastener Torque Calculator API\" --readme none"

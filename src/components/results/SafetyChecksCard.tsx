@@ -5,7 +5,7 @@ import { WasherData } from '../../data/washers';
 import { SurfacePressureResult } from '../../calc/surfacePressure';
 import { ThreadStrippingResult } from '../../calc/threadStripping';
 import { JointStiffnessResult } from '../../calc/jointStiffness';
-import { AssemblyType } from '../AssemblyDiagram';
+import { AssemblyType } from '../../domain/types';
 
 interface SurfacePressureProps {
   side: 'head' | 'nut';

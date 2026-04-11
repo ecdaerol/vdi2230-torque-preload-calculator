@@ -5,7 +5,7 @@ import { FrictionPair } from '../data/friction';
 import { WasherData } from '../data/washers';
 import { NutData } from '../data/nuts';
 import { ReceiverPreset } from '../data/receivers';
-import { AssemblyType } from './AssemblyDiagram';
+import { AssemblyType } from '../domain/types';
 import { BoltGrade } from '../calc/torque';
 import { TighteningMethod } from '../calc/preloadRealism';
 import { computeResults } from '../domain/useCase/computeResults';

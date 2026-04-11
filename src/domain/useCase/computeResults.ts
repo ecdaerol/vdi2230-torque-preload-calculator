@@ -4,7 +4,7 @@ import type { NutData } from '../../data/nuts';
 import type { ReceiverPreset } from '../../data/receivers';
 import type { ScrewData } from '../../data/screws';
 import type { WasherData } from '../../data/washers';
-import type { AssemblyType } from '../../components/AssemblyDiagram';
+import type { AssemblyType } from '../types';
 import { type BoltGrade, calculateBoltStress, calculateTorque } from '../../calc/torque';
 import { calculateSurfacePressure, type SurfacePressureResult } from '../../calc/surfacePressure';
 import { calculateThreadStripping, type ThreadStrippingResult } from '../../calc/threadStripping';

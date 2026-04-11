@@ -1,18 +1,18 @@
 {
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": true,
+    "noEmit": false,
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "dist/lib",
-    "rootDir": "src",
     "declarationMap": true,
-    "skipLibCheck": true
+    "outDir": "dist/lib",
+    "moduleResolution": "node",
+    "allowImportingTsExtensions": false
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/main.tsx"]
+  "include": [
+    "src/lib/index.ts",
+    "src/calc/**/*.ts",
+    "src/domain/**/*.ts",
+    "src/data/**/*.ts"
+  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
 }

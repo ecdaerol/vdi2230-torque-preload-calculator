@@ -1,4 +1,4 @@
-import { AssemblyType } from './AssemblyDiagram';
+import { AssemblyType } from '../domain/types';
 
 const assemblyOptions: { value: AssemblyType; label: string }[] = [
   { value: 'tapped-hole', label: 'Tapped Hole' },

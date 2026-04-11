@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { AssemblyType } from './AssemblyDiagram';
+import { AssemblyType } from '../domain/types';
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 import { FrictionPair, frictionDatabase } from '../data/friction';

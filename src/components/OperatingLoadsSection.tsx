@@ -1,4 +1,4 @@
-import { AssemblyType } from './AssemblyDiagram';
+import { AssemblyType } from '../domain/types';
 import { ReceiverPreset, receiverPresets } from '../data/receivers';
 
 interface Props {
