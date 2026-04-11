@@ -10,6 +10,7 @@ export * from './calc/threadStripping';
 export * from './calc/jointStiffness';
 export * from './calc/operatingState';
 export * from './calc/preloadRealism';
+export * from './calc/golden-cases';
 
 // Data
 export * from './data/screws';

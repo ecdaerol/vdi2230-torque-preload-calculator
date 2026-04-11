@@ -6,7 +6,6 @@ APP_NAME="Fastener Joint Calculator"
 OUTPUT_PATH="${1:-$HOME/Desktop/${APP_NAME}.app}"
 DIST_DIR="$REPO_ROOT/dist"
 SOURCE_ICON="$REPO_ROOT/public/app-icon.png"
-PORT=41730
 TMP_DIR="$(mktemp -d)"
 ICONSET_DIR="$TMP_DIR/app.iconset"
 ICON_ICNS="$TMP_DIR/app.icns"
@@ -81,19 +80,54 @@ PLIST
 
 cat > "$OUTPUT_PATH/Contents/MacOS/launch" <<'LAUNCH'
 #!/bin/bash
-set -e
+set -euo pipefail
+
 APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$APP_ROOT/Resources/dist"
-PORT=41730
-PIDS=$(/usr/sbin/lsof -tiTCP:${PORT} -sTCP:LISTEN || true)
-if [ -n "$PIDS" ]; then
-  kill $PIDS >/dev/null 2>&1 || true
-  sleep 1
-fi
-cd "$DIST_DIR"
-nohup /usr/bin/python3 -m http.server ${PORT} >/tmp/torque-preload-calculator.log 2>&1 &
-sleep 1
-/usr/bin/open "http://127.0.0.1:${PORT}"
+PID_FILE="$APP_ROOT/Resources/server.pid"
+URL_FILE="$APP_ROOT/Resources/server.url"
+
+pick_port() {
+  python3 - <<'PY'
+import socket
+with socket.socket() as s:
+    s.bind(("127.0.0.1", 0))
+    print(s.getsockname()[1])
+PY
+}
+
+is_pid_running() {
+  local pid="$1"
+  kill -0 "$pid" >/dev/null 2>&1
+}
+
+ensure_server() {
+  if [ -f "$PID_FILE" ] && [ -f "$URL_FILE" ]; then
+    local pid
+    pid="$(cat "$PID_FILE")"
+    if [ -n "$pid" ] && is_pid_running "$pid"; then
+      cat "$URL_FILE"
+      return 0
+    fi
+  fi
+
+  local port
+  port="$(pick_port)"
+  local url="http://127.0.0.1:${port}"
+
+  (
+    cd "$DIST_DIR"
+    nohup /usr/bin/python3 -m http.server "$port" >/tmp/fastener-joint-calculator.log 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "$url" > "$URL_FILE"
+  )
+
+  sleep 0.5
+  cat "$URL_FILE"
+}
+
+url="$(ensure_server)"
+/usr/bin/open "$url"
 LAUNCH
 chmod +x "$OUTPUT_PATH/Contents/MacOS/launch"
 
