@@ -6,37 +6,46 @@ const assemblyOptions: { value: AssemblyType; label: string }[] = [
 ];
 
 function AssemblyModeIcon({ mode, active }: { mode: AssemblyType; active: boolean }) {
-  const common = {
-    stroke: 'currentColor',
-    strokeWidth: active ? 1.35 : 1.15,
-    fill: 'none',
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-  };
+  const sw = active ? 1.4 : 1.1;
+  const col = 'currentColor';
 
   if (mode === 'tapped-hole') {
+    // Cross-section: bolt going into a tapped plate
     return (
-      <svg width="56" height="56" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="6.2" width="16" height="2.4" rx="1" {...common} />
-        <rect x="4" y="11" width="16" height="8.2" rx="1" {...common} />
-        <path d="M12 3.6v12.3" {...common} />
-        <path d="M9.2 3.6h5.6" {...common} />
-        <path d="M10.2 13.2l-1.4.9 1.4.9" {...common} />
-        <path d="M13.8 13.2l1.4.9-1.4.9" {...common} />
-        <path d="M10.2 15.6l-1.4.9 1.4.9" {...common} />
-        <path d="M13.8 15.6l1.4.9-1.4.9" {...common} />
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
+        {/* Top plate (through-hole) */}
+        <rect x="6" y="12" width="14" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
+        <rect x="28" y="12" width="14" height="14" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Bottom plate (tapped — solid with threads) */}
+        <rect x="6" y="28" width="36" height="10" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Bolt shank */}
+        <rect x="21.5" y="6" width="5" height="30" rx="1" stroke={col} strokeWidth={sw} />
+        {/* Bolt head */}
+        <rect x="18" y="4" width="12" height="4" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Thread lines in tapped hole */}
+        <line x1="21.5" y1="30" x2="26.5" y2="30" stroke={col} strokeWidth={0.7} opacity={0.5} />
+        <line x1="21.5" y1="32.5" x2="26.5" y2="32.5" stroke={col} strokeWidth={0.7} opacity={0.5} />
+        <line x1="21.5" y1="35" x2="26.5" y2="35" stroke={col} strokeWidth={0.7} opacity={0.5} />
       </svg>
     );
   }
 
   if (mode === 'through-nut') {
+    // Cross-section: bolt through two plates with nut
     return (
-      <svg width="56" height="56" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="6.2" width="16" height="2.4" rx="1" {...common} />
-        <rect x="4" y="11.8" width="16" height="2.4" rx="1" {...common} />
-        <path d="M12 3.6v14.7" {...common} />
-        <path d="M9.2 3.6h5.6" {...common} />
-        <path d="M9.2 18.2h5.6l1.6 1.8-1.6 1.8H9.2L7.6 20z" {...common} />
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" fill="none">
+        {/* Top plate */}
+        <rect x="6" y="12" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
+        <rect x="28" y="12" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Bottom plate */}
+        <rect x="6" y="26" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
+        <rect x="28" y="26" width="14" height="12" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Bolt shank */}
+        <rect x="21.5" y="6" width="5" height="38" rx="1" stroke={col} strokeWidth={sw} />
+        {/* Bolt head */}
+        <rect x="18" y="4" width="12" height="4" rx="1.5" stroke={col} strokeWidth={sw} />
+        {/* Nut (hex cross-section) */}
+        <path d="M17 40 L19 44 L29 44 L31 40 L29 40 L17 40Z" stroke={col} strokeWidth={sw} strokeLinejoin="round" />
       </svg>
     );
   }
@@ -51,14 +60,14 @@ interface Props {
 
 export default function AssemblyTypeSelector({ assemblyType, onChange, disableNutAndBolt }: Props) {
   return (
-    <div className="grid grid-cols-3 gap-2 mb-4">
+    <div className="grid grid-cols-2 gap-2 mb-4">
       {assemblyOptions.map((option) => {
         const disabled = disableNutAndBolt && option.value !== 'tapped-hole';
         return (
           <button
             key={option.value}
             disabled={disabled}
-            className="flex flex-col items-center justify-center gap-3 min-h-[132px] px-4 py-4 rounded-[12px] text-sm font-medium transition-colors border"
+            className="flex flex-col items-center justify-center gap-2 min-h-[110px] px-4 py-3 rounded-[12px] text-sm font-medium transition-colors border"
             style={
               disabled
                 ? { color: '#9ca3af', borderColor: 'var(--line)', backgroundColor: 'var(--panel)', cursor: 'not-allowed', opacity: 0.65 }
