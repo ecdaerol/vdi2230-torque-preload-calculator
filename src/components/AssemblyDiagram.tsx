@@ -144,6 +144,7 @@ export default function AssemblyDiagram({
 
   const hwTh = headWasher ? 4 : 0;
   const hwR = headWasher ? 34 : 0;
+  const hwGap = headWasher ? 3 : 0;
 
   const nwTh = nutWasher ? 4 : 0;
   const nwR = nutWasher ? 34 : 0;
@@ -161,10 +162,10 @@ export default function AssemblyDiagram({
   const topOffset = 44;
   const bodyStart = headStyle === 'countersunk'
     ? topOffset
-    : topOffset + headH + (headWasher ? hwTh : 0);
+    : topOffset + headH + hwGap + hwTh;
 
   // Positions
-  const headWasherTop = headStyle === 'countersunk' ? bodyStart - hwTh : bodyStart - hwTh;
+  const headWasherTop = bodyStart - hwTh; // washer sits flush on clamped part; head is hwGap above
   const clampTop = bodyStart;
   const clampBot = clampTop + clampH;
 
@@ -225,7 +226,7 @@ export default function AssemblyDiagram({
     switch (headStyle) {
       case 'pan': {
         const domeH = headH * 0.35;
-        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const hTop = headWasher ? headWasherTop - headH - hwGap : clampTop - headH;
         return (
           <path
             d={`
@@ -244,7 +245,7 @@ export default function AssemblyDiagram({
       }
       case 'button': {
         const domeH = headH * 0.55;
-        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const hTop = headWasher ? headWasherTop - headH - hwGap : clampTop - headH;
         return (
           <path
             d={`
@@ -262,7 +263,7 @@ export default function AssemblyDiagram({
         );
       }
       case 'hex': {
-        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const hTop = headWasher ? headWasherTop - headH - hwGap : clampTop - headH;
         const inset = headR * 0.18;
         return (
           <path
@@ -299,7 +300,7 @@ export default function AssemblyDiagram({
         );
       }
       case 'socket': {
-        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const hTop = headWasher ? headWasherTop - headH - hwGap : clampTop - headH;
         return (
           <rect
             x={cx - headR} y={hTop}
@@ -312,7 +313,7 @@ export default function AssemblyDiagram({
       case 'set':
         return null;
       case 'shoulder': {
-        const hTop = headWasher ? headWasherTop - headH : clampTop - headH;
+        const hTop = headWasher ? headWasherTop - headH - hwGap : clampTop - headH;
         return (
           <>
             <rect

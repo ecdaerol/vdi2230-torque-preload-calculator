@@ -21,6 +21,7 @@ const formatNut = (n: NutData): string =>
 
 export default function Calculator() {
   const s = useCalculatorState();
+  const isStandoff = s.screw?.type.toLowerCase().includes('standoff') ?? false;
 
   const selectClass = 'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
   const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
@@ -56,7 +57,7 @@ export default function Calculator() {
             <ScrewSelector value={s.screw} onChange={s.handleScrewChange} />
           </div>
 
-          {s.canUseHeadWasher ? (
+          {!isStandoff && (s.canUseHeadWasher ? (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1" htmlFor="head-washer" style={{ color: 'var(--ink)' }}>
                 Washer Under Head
@@ -82,12 +83,14 @@ export default function Calculator() {
                 Not applicable for set screws
               </div>
             </div>
-          ) : null}
+          ) : null)}
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Top Part</label>
-            <MaterialSelector id="clamped-material" value={s.clampedMaterial} onChange={s.setClampedMaterial} />
-          </div>
+          {!isStandoff && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Top Part</label>
+              <MaterialSelector id="clamped-material" value={s.clampedMaterial} onChange={s.setClampedMaterial} />
+            </div>
+          )}
 
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>

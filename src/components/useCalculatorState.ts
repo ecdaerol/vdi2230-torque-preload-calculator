@@ -95,6 +95,10 @@ export default function useCalculatorState() {
       setNutIdx(0);
     }
     if (!nextScrew.hasHead || nextScrew.isCountersunk) setHeadWasherIdx(-1);
+    if (nextScrew.type.toLowerCase().includes('standoff')) {
+      setHeadWasherIdx(-1);
+      setClampedMaterial(null);
+    }
     if (!nextScrew.hasHead && assemblyType !== 'tapped-hole') setAssemblyType('tapped-hole');
   }, [assemblyType, clampLength, engagementLength, screw]);
 
