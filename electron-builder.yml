@@ -18,6 +18,12 @@ win:
     - target: portable
       arch: [x64]
 
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Utility
+
 files:
   - dist/**/*
   - electron/main.cjs

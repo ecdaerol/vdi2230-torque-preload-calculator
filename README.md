@@ -1,5 +1,10 @@
 # Fastener Joint Calculator
 
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://ecdaerol.github.io/fastener-torque-calculator/)
+[![npm](https://img.shields.io/npm/v/@ecdaerol/fastener-torque-calculator)](https://www.npmjs.com/package/@ecdaerol/fastener-torque-calculator)
+[![CI](https://github.com/ecdaerol/fastener-torque-calculator/actions/workflows/deploy.yml/badge.svg)](https://github.com/ecdaerol/fastener-torque-calculator/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A browser-based engineering tool for estimating **tightening torque**, **preload**, **service preload after losses**, **surface pressure**, **thread stripping**, and **joint stiffness** for a wide range of real-world fastener joints.
 
 It is intentionally positioned between a simple torque table and a heavy full VDI package:

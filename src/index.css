@@ -168,6 +168,12 @@
   --bar-track: rgba(255,255,255,0.1);
 }
 
+.embed-dark::-webkit-scrollbar { width: 8px; }
+.embed-dark::-webkit-scrollbar-track { background: transparent; }
+.embed-dark::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+.embed-dark::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+.embed-dark { scrollbar-color: rgba(255,255,255,0.15) transparent; scrollbar-width: thin; }
+
 .embed-dark select,
 .embed-dark input[type="number"],
 .embed-dark input[type="text"],

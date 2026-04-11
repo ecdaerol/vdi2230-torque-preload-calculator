@@ -25,7 +25,7 @@ export default function App() {
                   Fastener Joint Calculator
                 </h1>
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                  Made by Ecda Erol
+                  Made by <a href="https://ecdaerol.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-white transition-colors">Ecda Erol</a>
                 </p>
               </div>
             </div>
