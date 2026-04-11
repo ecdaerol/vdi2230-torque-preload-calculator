@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ScrewData } from '../data/screws';
 import { MaterialData } from '../data/materials';
 import { FrictionPair } from '../data/friction';
@@ -140,69 +141,74 @@ export default function Results({
     );
   }
 
-  const boltStress: BoltStressResult = calculateBoltStress(preload, screw, grade, friction);
-
-  const hasSurfacePressure = screw.hasHead && !screw.isCountersunk && clampedMaterial;
-  let sp: SurfacePressureResult | null = null;
-  if (hasSurfacePressure) {
-    const headBearingOD = headWasher ? headWasher.outerDiameter : bearingOD;
-    const headBearingID = headWasher ? headWasher.innerDiameter : bearingID;
-    sp = calculateSurfacePressure(preload, screw, clampedMaterial!, headBearingOD, headBearingID);
-  }
-
-  let spNut: SurfacePressureResult | null = null;
-  if (assemblyType === 'through-nut' && tappedMaterial && nut) {
-    const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
-    const nutBearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
-    spNut = calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
-  }
-
-  let ts: ThreadStrippingResult | null = null;
-  if (assemblyType !== 'through-nut' && tappedMaterial && engagementLength > 0) {
-    ts = calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade, receiverPreset);
-  }
-
-  let js: JointStiffnessResult | null = null;
-  if (clampedMaterial && clampLength > 0) {
-    js = calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
-  }
-
-  const scatter = friction.scatter ?? 0.20;
-  const torqueMin = calculateTorque(preload, screw, {
-    ...friction,
-    muThread: friction.muThread * (1 - scatter),
-    muHead: friction.muHead * (1 - scatter),
-  }, bearingOD, bearingID);
-  const torqueMax = calculateTorque(preload, screw, {
-    ...friction,
-    muThread: friction.muThread * (1 + scatter),
-    muHead: friction.muHead * (1 + scatter),
-  }, bearingOD, bearingID);
-
-  const totalScatter = combineScatter(friction.scatter, tighteningMethod.processScatter);
-  const servicePreload = calculateServicePreload(
-    torque,
-    screw,
-    friction,
-    totalScatter,
-    relaxationLossPct,
-    settlementMicrons,
-    js,
-    bearingOD,
-    bearingID,
+  const boltStress = useMemo<BoltStressResult>(
+    () => calculateBoltStress(preload, screw, grade, friction),
+    [preload, screw, grade, friction],
   );
 
-  const operatingState = js
-    ? calculateOperatingState({
-        servicePreload: servicePreload.service.preloadNominal,
-        axialLoad: axialServiceLoad,
-        shearLoad: shearServiceLoad,
-        loadFactor: js.loadFactor,
-        interfaceFriction: slipFriction,
-        screw,
-        grade,
-      })
-    : null;
+  const sp = useMemo<SurfacePressureResult | null>(() => {
+    if (!screw.hasHead || screw.isCountersunk || !clampedMaterial) return null;
+    const headBearingOD = headWasher ? headWasher.outerDiameter : bearingOD;
+    const headBearingID = headWasher ? headWasher.innerDiameter : bearingID;
+    return calculateSurfacePressure(preload, screw, clampedMaterial, headBearingOD, headBearingID);
+  }, [preload, screw, clampedMaterial, headWasher, bearingOD, bearingID]);
+
+  const hasSurfacePressure = sp !== null;
+
+  const spNut = useMemo<SurfacePressureResult | null>(() => {
+    if (assemblyType !== 'through-nut' || !tappedMaterial || !nut) return null;
+    const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
+    const nutBearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
+    return calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
+  }, [preload, screw, assemblyType, tappedMaterial, nut, nutWasher]);
+
+  const ts = useMemo<ThreadStrippingResult | null>(() => {
+    if (assemblyType === 'through-nut' || !tappedMaterial || engagementLength <= 0) return null;
+    return calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade, receiverPreset);
+  }, [preload, screw, assemblyType, tappedMaterial, engagementLength, grade, receiverPreset]);
+
+  const js = useMemo<JointStiffnessResult | null>(() => {
+    if (!clampedMaterial || clampLength <= 0) return null;
+    return calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
+  }, [preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit]);
+
+  const { torqueMin, torqueMax } = useMemo(() => {
+    const scatter = friction.scatter ?? 0.20;
+    const min = calculateTorque(preload, screw, {
+      ...friction,
+      muThread: friction.muThread * (1 - scatter),
+      muHead: friction.muHead * (1 - scatter),
+    }, bearingOD, bearingID);
+    const max = calculateTorque(preload, screw, {
+      ...friction,
+      muThread: friction.muThread * (1 + scatter),
+      muHead: friction.muHead * (1 + scatter),
+    }, bearingOD, bearingID);
+    return { torqueMin: min, torqueMax: max };
+  }, [preload, screw, friction, bearingOD, bearingID]);
+
+  const { totalScatter, servicePreload } = useMemo(() => {
+    const scatter = combineScatter(friction.scatter, tighteningMethod.processScatter);
+    const service = calculateServicePreload(
+      torque, screw, friction, scatter,
+      relaxationLossPct, settlementMicrons, js,
+      bearingOD, bearingID,
+    );
+    return { totalScatter: scatter, servicePreload: service };
+  }, [torque, screw, friction, tighteningMethod, relaxationLossPct, settlementMicrons, js, bearingOD, bearingID]);
+
+  const operatingState = useMemo(() => {
+    if (!js) return null;
+    return calculateOperatingState({
+      servicePreload: servicePreload.service.preloadNominal,
+      axialLoad: axialServiceLoad,
+      shearLoad: shearServiceLoad,
+      loadFactor: js.loadFactor,
+      interfaceFriction: slipFriction,
+      screw,
+      grade,
+    });
+  }, [js, servicePreload, axialServiceLoad, shearServiceLoad, slipFriction, screw, grade]);
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;

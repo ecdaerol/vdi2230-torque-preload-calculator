@@ -80,10 +80,11 @@ export default function ScrewSelector({ value, onChange }: Props) {
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+      <label className="block text-sm font-medium mb-1" htmlFor="screw-standard" style={{ color: 'var(--ink)' }}>
         Screw Standard
       </label>
       <select
+        id="screw-standard"
         className={selectClass}
         style={selectStyle}
         value={selectedStandard}
@@ -103,10 +104,11 @@ export default function ScrewSelector({ value, onChange }: Props) {
 
       {selectedStandard && (
         <div className="mt-3">
-          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+          <label className="block text-sm font-medium mb-1" htmlFor="screw-size" style={{ color: 'var(--ink)' }}>
             Screw Size
           </label>
           <select
+            id="screw-size"
             className={selectClass}
             style={selectStyle}
             value={value?.standard === selectedStandard ? value.size : ''}

@@ -4,6 +4,7 @@ import { MaterialData, materialDatabase } from '../data/materials';
 interface Props {
   value: MaterialData | null;
   onChange: (material: MaterialData) => void;
+  id?: string;
 }
 
 const customMaterialDefaults: MaterialData = {
@@ -19,7 +20,7 @@ const customMaterialDefaults: MaterialData = {
   notes: 'User-defined material data.',
 };
 
-export default function MaterialSelector({ value, onChange }: Props) {
+export default function MaterialSelector({ value, onChange, id }: Props) {
   const [isCustom, setIsCustom] = useState(false);
   const [custom, setCustom] = useState<MaterialData>(customMaterialDefaults);
 
@@ -39,10 +40,11 @@ export default function MaterialSelector({ value, onChange }: Props) {
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+      <label className="block text-sm font-medium mb-1" htmlFor={id} style={{ color: 'var(--ink)' }}>
         Material
       </label>
       <select
+        id={id}
         className={selectClass}
         style={fieldStyle}
         value={isCustom ? '__custom__' : (value?.name ?? '')}

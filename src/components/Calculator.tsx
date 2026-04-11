@@ -213,6 +213,7 @@ export default function Calculator() {
                         ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff', boxShadow: '0 1px 3px var(--shadow)', borderColor: 'transparent' }
                         : { color: 'var(--ink)', borderColor: 'var(--line)', backgroundColor: 'var(--panel)' }
                   }
+                  aria-label={`${option.label} assembly`}
                   onClick={() => !disabled && setAssemblyType(option.value)}
                 >
                   <span className="leading-none" aria-hidden="true"><AssemblyModeIcon mode={option.value} active={!disabled && assemblyType === option.value} /></span>
@@ -232,6 +233,7 @@ export default function Calculator() {
                     ? { background: 'var(--panel)', color: 'var(--ink)', boxShadow: '0 1px 3px var(--shadow)' }
                     : { color: 'var(--muted)' }
                 }
+                aria-label={mode === 'utilization' ? 'Set torque as percentage' : mode === 'torque' ? 'Enter torque value' : 'Enter preload value'}
                 onClick={() => setInputMode(mode)}
               >
                 {mode === 'utilization' ? 'Torque %' : mode === 'torque' ? 'Torque' : 'Preload'}
@@ -241,20 +243,23 @@ export default function Calculator() {
 
           {inputMode === 'utilization' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+              <label className="block text-sm font-medium mb-1" htmlFor="utilization-value" style={{ color: 'var(--ink)' }}>
                 Torque Level [%]
               </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="utilization-range"
                   type="range"
                   min="0"
                   max="100"
                   step="5"
+                  aria-label="Torque utilization percentage"
                   className="brand-range flex-1 cursor-pointer"
                   value={utilization}
                   onChange={(event) => setUtilization(snapPercent(parseInt(event.target.value)))}
                 />
                 <input
+                  id="utilization-value"
                   type="number"
                   min="0"
                   max="100"
@@ -270,10 +275,11 @@ export default function Calculator() {
 
           {inputMode === 'torque' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+              <label className="block text-sm font-medium mb-1" htmlFor="torque-input" style={{ color: 'var(--ink)' }}>
                 Tightening Torque [{useImperial ? 'lb·ft' : 'N·m'}]
               </label>
               <input
+                id="torque-input"
                 type="number"
                 min="0"
                 step="0.1"
@@ -288,10 +294,11 @@ export default function Calculator() {
 
           {inputMode === 'preload' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+              <label className="block text-sm font-medium mb-1" htmlFor="preload-input" style={{ color: 'var(--ink)' }}>
                 Target Preload [{useImperial ? 'lbf' : 'N'}]
               </label>
               <input
+                id="preload-input"
                 type="number"
                 min="0"
                 step="1"
@@ -310,10 +317,10 @@ export default function Calculator() {
 
           {canUseHeadWasher ? (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
+              <label className="block text-sm font-medium mb-1" htmlFor="head-washer" style={{ color: 'var(--ink)' }}>
                 Washer Under Head
               </label>
-              <select className={selectClass} style={selectStyle} value={headWasherIdx} onChange={(event) => setHeadWasherIdx(parseInt(event.target.value))}>
+              <select id="head-washer" className={selectClass} style={selectStyle} value={headWasherIdx} onChange={(event) => setHeadWasherIdx(parseInt(event.target.value))}>
                 <option value={-1}>None</option>
                 {matchingWashers.map((washer, index) => (
                   <option key={`hw-${index}`} value={index}>{formatWasher(washer)}</option>
@@ -338,21 +345,21 @@ export default function Calculator() {
 
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Top Part</label>
-            <MaterialSelector value={clampedMaterial} onChange={setClampedMaterial} />
+            <MaterialSelector id="clamped-material" value={clampedMaterial} onChange={setClampedMaterial} />
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>
               {assemblyType === 'through-nut' ? 'Bottom Part' : 'Threaded Part'}
             </label>
-            <MaterialSelector value={tappedMaterial} onChange={setTappedMaterial} />
+            <MaterialSelector id="tapped-material" value={tappedMaterial} onChange={setTappedMaterial} />
           </div>
 
           {assemblyType === 'through-nut' && (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Nut</label>
-                <select className={selectClass} style={selectStyle} value={nutIdx} onChange={(event) => setNutIdx(parseInt(event.target.value))}>
+                <label className="block text-sm font-medium mb-1" htmlFor="nut-select" style={{ color: 'var(--ink)' }}>Nut</label>
+                <select id="nut-select" className={selectClass} style={selectStyle} value={nutIdx} onChange={(event) => setNutIdx(parseInt(event.target.value))}>
                   {matchingNuts.length === 0 && <option value={0}>Select a screw first</option>}
                   {matchingNuts.map((item, index) => (
                     <option key={`nut-${index}`} value={index}>{formatNut(item)}</option>
@@ -361,8 +368,8 @@ export default function Calculator() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Washer Under Nut</label>
-                <select className={selectClass} style={selectStyle} value={nutWasherIdx} onChange={(event) => setNutWasherIdx(parseInt(event.target.value))}>
+                <label className="block text-sm font-medium mb-1" htmlFor="nut-washer" style={{ color: 'var(--ink)' }}>Washer Under Nut</label>
+                <select id="nut-washer" className={selectClass} style={selectStyle} value={nutWasherIdx} onChange={(event) => setNutWasherIdx(parseInt(event.target.value))}>
                   <option value={-1}>None</option>
                   {matchingWashers.map((washer, index) => (
                     <option key={`nw-${index}`} value={index}>{formatWasher(washer)}</option>
@@ -373,8 +380,8 @@ export default function Calculator() {
           )}
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Bolt Grade</label>
-            <select className={selectClass} style={selectStyle} value={gradeIdx} onChange={(event) => setGradeIdx(parseInt(event.target.value))}>
+            <label className="block text-sm font-medium mb-1" htmlFor="bolt-grade" style={{ color: 'var(--ink)' }}>Bolt Grade</label>
+            <select id="bolt-grade" className={selectClass} style={selectStyle} value={gradeIdx} onChange={(event) => setGradeIdx(parseInt(event.target.value))}>
               {boltGrades.map((item, index) => (
                 <option key={item.name} value={index}>{item.name} (Rp₀.₂ = {item.Rp02} MPa)</option>
               ))}
@@ -382,8 +389,9 @@ export default function Calculator() {
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Interface Condition</label>
+            <label className="block text-sm font-medium mb-1" htmlFor="interface-condition" style={{ color: 'var(--ink)' }}>Interface Condition</label>
             <select
+              id="interface-condition"
               className={selectClass}
               style={selectStyle}
               value={frictionIdx}
@@ -412,8 +420,9 @@ export default function Calculator() {
             </summary>
             <div className="px-3 pb-3 pt-1 grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Thread friction</label>
+                <label className="block text-xs mb-1" htmlFor="thread-friction" style={{ color: 'var(--muted)' }}>Thread friction</label>
                 <input
+                  id="thread-friction"
                   type="number"
                   step="0.01"
                   min="0.01"
@@ -425,8 +434,9 @@ export default function Calculator() {
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Head / nut friction</label>
+                <label className="block text-xs mb-1" htmlFor="head-friction" style={{ color: 'var(--muted)' }}>Head / nut friction</label>
                 <input
+                  id="head-friction"
                   type="number"
                   step="0.01"
                   min="0.01"
@@ -438,8 +448,9 @@ export default function Calculator() {
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Preset scatter</label>
+                <label className="block text-xs mb-1" htmlFor="preset-scatter" style={{ color: 'var(--muted)' }}>Preset scatter</label>
                 <input
+                  id="preset-scatter"
                   type="number"
                   step="0.01"
                   min="0"
@@ -459,8 +470,8 @@ export default function Calculator() {
             </summary>
             <div className="px-3 pb-3 pt-1 space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Tightening method</label>
-                <select className={selectClass} style={selectStyle} value={tighteningMethodIdx} onChange={(event) => setTighteningMethodIdx(parseInt(event.target.value))}>
+                <label className="block text-sm font-medium mb-1" htmlFor="tightening-method" style={{ color: 'var(--ink)' }}>Tightening method</label>
+                <select id="tightening-method" className={selectClass} style={selectStyle} value={tighteningMethodIdx} onChange={(event) => setTighteningMethodIdx(parseInt(event.target.value))}>
                   {tighteningMethods.map((method, index) => (
                     <option key={method.key} value={index}>{method.label}</option>
                   ))}
@@ -472,8 +483,9 @@ export default function Calculator() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Relaxation loss [%]</label>
+                  <label className="block text-sm font-medium mb-1" htmlFor="relaxation-loss" style={{ color: 'var(--ink)' }}>Relaxation loss [%]</label>
                   <input
+                    id="relaxation-loss"
                     type="number"
                     step="1"
                     min="0"
@@ -485,8 +497,9 @@ export default function Calculator() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Settlement / embedding [μm]</label>
+                  <label className="block text-sm font-medium mb-1" htmlFor="settlement" style={{ color: 'var(--ink)' }}>Settlement / embedding [μm]</label>
                   <input
+                    id="settlement"
                     type="number"
                     step="1"
                     min="0"
@@ -510,8 +523,8 @@ export default function Calculator() {
             <div className="px-3 pb-3 pt-1 space-y-3">
               {assemblyType !== 'through-nut' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Thread receiver</label>
-                  <select className={selectClass} style={selectStyle} value={receiverPresetIdx} onChange={(event) => setReceiverPresetIdx(parseInt(event.target.value))}>
+                  <label className="block text-sm font-medium mb-1" htmlFor="thread-receiver" style={{ color: 'var(--ink)' }}>Thread receiver</label>
+                  <select id="thread-receiver" className={selectClass} style={selectStyle} value={receiverPresetIdx} onChange={(event) => setReceiverPresetIdx(parseInt(event.target.value))}>
                     {receiverPresets.map((preset, index) => (
                       <option key={preset.key} value={index}>{preset.label}</option>
                     ))}
@@ -524,8 +537,9 @@ export default function Calculator() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>External axial load [{useImperial ? 'lbf' : 'N'}]</label>
+                  <label className="block text-sm font-medium mb-1" htmlFor="axial-load" style={{ color: 'var(--ink)' }}>External axial load [{useImperial ? 'lbf' : 'N'}]</label>
                   <input
+                    id="axial-load"
                     type="number"
                     step="1"
                     min="0"
@@ -537,8 +551,9 @@ export default function Calculator() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>External shear load [{useImperial ? 'lbf' : 'N'}]</label>
+                  <label className="block text-sm font-medium mb-1" htmlFor="shear-load" style={{ color: 'var(--ink)' }}>External shear load [{useImperial ? 'lbf' : 'N'}]</label>
                   <input
+                    id="shear-load"
                     type="number"
                     step="1"
                     min="0"
@@ -552,8 +567,9 @@ export default function Calculator() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Slip interface friction μ</label>
+                <label className="block text-sm font-medium mb-1" htmlFor="slip-friction" style={{ color: 'var(--ink)' }}>Slip interface friction μ</label>
                 <input
+                  id="slip-friction"
                   type="number"
                   step="0.01"
                   min="0"
@@ -573,8 +589,9 @@ export default function Calculator() {
           <div className={`grid gap-3 mb-4 ${assemblyType === 'through-nut' ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {assemblyType !== 'through-nut' && (
               <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Thread Engagement [mm]</label>
+                <label className="block text-sm font-medium mb-1" htmlFor="thread-engagement" style={{ color: 'var(--ink)' }}>Thread Engagement [mm]</label>
                 <input
+                  id="thread-engagement"
                   type="number"
                   step="0.1"
                   min="0.5"
@@ -587,8 +604,9 @@ export default function Calculator() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Clamp Length [mm]</label>
+              <label className="block text-sm font-medium mb-1" htmlFor="clamp-length" style={{ color: 'var(--ink)' }}>Clamp Length [mm]</label>
               <input
+                id="clamp-length"
                 type="number"
                 step="0.1"
                 min="1"
@@ -616,8 +634,9 @@ export default function Calculator() {
                 Advanced stiffness settings
               </summary>
               <div className="px-3 pb-3 pt-1">
-                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--ink)' }}>Top part share of clamp length [mm]</label>
+                <label className="block text-sm font-medium mb-1" htmlFor="clamp-split" style={{ color: 'var(--ink)' }}>Top part share of clamp length [mm]</label>
                 <input
+                  id="clamp-split"
                   type="number"
                   step="0.1"
                   min="0"
@@ -641,6 +660,7 @@ export default function Calculator() {
             <label className="text-sm" style={{ color: 'var(--muted)' }}>Units:</label>
             <button
               className="px-3 py-1 rounded-[10px] text-sm font-medium transition-colors"
+              aria-label="Use metric units"
               style={!useImperial ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff' } : { color: 'var(--muted)' }}
               onClick={() => setUseImperial(false)}
             >
@@ -648,6 +668,7 @@ export default function Calculator() {
             </button>
             <button
               className="px-3 py-1 rounded-[10px] text-sm font-medium transition-colors"
+              aria-label="Use imperial units"
               style={useImperial ? { background: 'linear-gradient(135deg, var(--brand), var(--brand-2))', color: '#ffffff' } : { color: 'var(--muted)' }}
               onClick={() => setUseImperial(true)}
             >
