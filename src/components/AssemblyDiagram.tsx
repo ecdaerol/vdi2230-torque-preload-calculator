@@ -66,12 +66,12 @@ function classifyHead(screw: ScrewData): HeadStyle {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCREW_FILL   = '#94a3b8';
-const SCREW_STROKE = '#64748b';
-const WASHER_FILL  = '#d1d5db';
-const WASHER_STROKE = '#9ca3af';
-const NUT_FILL     = '#9ca3af';
-const NUT_STROKE   = '#6b7280';
+const SCREW_FILL   = '#8b9dc3';
+const SCREW_STROKE = '#5a6d8a';
+const WASHER_FILL  = '#d4a843';
+const WASHER_STROKE = '#a67c2e';
+const NUT_FILL     = '#b08968';
+const NUT_STROKE   = '#8b6a47';
 const DIM_COLOR    = '#f97316';
 const VIEW_W = 320;
 
@@ -170,10 +170,10 @@ export default function AssemblyDiagram({
   const tappedTop = clampBot;
   const tappedBot = tappedTop + engageH;
 
-  // Nut / nut-washer positions (through-nut only)
-  const nutWasherTop = assemblyType === 'through-nut' ? tappedBot + 2 : 0;
+  // Nut / nut-washer positions (through-nut only) — flush, no gaps
+  const nutWasherTop = assemblyType === 'through-nut' ? tappedBot : 0;
   const nutTop = assemblyType === 'through-nut'
-    ? nutWasherTop + (nutWasher ? nwTh : 0) + 1
+    ? nutWasherTop + (nutWasher ? nwTh : 0)
     : 0;
 
   // Colors
@@ -350,18 +350,20 @@ export default function AssemblyDiagram({
   }
 
   // -----------------------------------------------------------------------
-  // Nut renderer — trapezoid cross-section (hex viewed from side)
+  // Nut renderer — rectangle with top chamfers (hex nut engineering section)
   // -----------------------------------------------------------------------
   function renderNut(): React.ReactNode {
     if (assemblyType !== 'through-nut' || !nut) return null;
-    const inset = nutR * 0.15; // angled sides
+    const ch = 3; // chamfer size
     return (
       <path
         d={`
-          M ${cx - nutR} ${nutTop}
-          L ${cx - nutR + inset} ${nutTop + nutH}
-          L ${cx + nutR - inset} ${nutTop + nutH}
-          L ${cx + nutR} ${nutTop}
+          M ${cx - nutR + ch} ${nutTop}
+          L ${cx + nutR - ch} ${nutTop}
+          L ${cx + nutR} ${nutTop + ch}
+          L ${cx + nutR} ${nutTop + nutH}
+          L ${cx - nutR} ${nutTop + nutH}
+          L ${cx - nutR} ${nutTop + ch}
           Z
         `}
         fill={NUT_FILL} stroke={NUT_STROKE} strokeWidth="1.5"
@@ -607,9 +609,14 @@ export default function AssemblyDiagram({
   // -----------------------------------------------------------------------
   return (
     <div className="card p-6">
-      <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--ink)' }}>
-        Assembly View
-      </h3>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+          Assembly View
+        </h3>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: 'var(--info-bg)' }}>
+          {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
+        </span>
+      </div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] items-start">
         <div className="overflow-x-auto flex justify-center">
           <svg
@@ -690,27 +697,20 @@ export default function AssemblyDiagram({
             {renderDimensions()}
           </svg>
         </div>
-        <div className="flex flex-col gap-4">
-          <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--info-bg)' }}>
-            {infoItems.map((item, index) => (
-              <div
-                key={`${item.label}-${item.value}`}
-                className="flex items-start gap-3 px-4 py-3"
-                style={{ borderTop: index === 0 ? 'none' : '1px solid var(--line)' }}
-              >
-                <span className="w-3 h-3 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: item.fill, border: `1px solid ${item.stroke}` }} />
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{item.label}</div>
-                  <div className="text-sm leading-snug" style={{ color: 'var(--ink)' }}>{item.value}</div>
-                </div>
+        <div className="rounded-[12px] border overflow-hidden" style={{ borderColor: 'var(--line)', backgroundColor: 'var(--info-bg)' }}>
+          {infoItems.map((item, index) => (
+            <div
+              key={`${item.label}-${item.value}`}
+              className="flex items-start gap-3 px-4 py-3"
+              style={{ borderTop: index === 0 ? 'none' : '1px solid var(--line)' }}
+            >
+              <span className="w-3 h-3 rounded-sm mt-1 flex-shrink-0" style={{ backgroundColor: item.fill, border: `1.5px solid ${item.stroke}` }} />
+              <div className="min-w-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{item.label}</div>
+                <div className="text-sm leading-snug" style={{ color: 'var(--ink)' }}>{item.value}</div>
               </div>
-            ))}
-          </div>
-          <div className="flex justify-end">
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ color: 'var(--muted)', backgroundColor: 'var(--info-bg)' }}>
-              {assemblyType === 'tapped-hole' ? 'Tapped hole' : 'Nut & bolt'}
-            </span>
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
