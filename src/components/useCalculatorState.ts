@@ -14,6 +14,8 @@ import { calculateThreadStripping } from '../calc/threadStripping';
 const NM_PER_LBFT = 1.355818;
 const N_PER_LBF = 4.44822;
 
+export type TurnedSide = 'head' | 'nut';
+
 export interface AssemblyLimit {
   preload: number;
   mode: string;
@@ -45,6 +47,8 @@ export default function useCalculatorState() {
   const [axialLoadInput, setAxialLoadInput] = useState(0);
   const [shearLoadInput, setShearLoadInput] = useState(0);
   const [slipFriction, setSlipFriction] = useState(0.15);
+  const [turnedSide, setTurnedSide] = useState<TurnedSide>('nut'); // FIX #2/#6
+  const [interfaceCount, setInterfaceCount] = useState(1);          // FIX #5
 
   const friction = customFriction ?? frictionDatabase[frictionIdx];
   const grade = boltGrades[gradeIdx];
@@ -104,12 +108,22 @@ export default function useCalculatorState() {
 
   const snapPercent = (v: number) => Math.max(0, Math.min(100, Math.round(v / 5) * 5));
 
-  const effectiveBearingOD = headWasher ? headWasher.outerDiameter : undefined;
-  const effectiveBearingID = headWasher ? headWasher.innerDiameter : undefined;
+  // --- Bearing geometry ---
+  // Head-side bearing (for surface pressure and stiffness)
+  const headBearingOD = headWasher ? headWasher.outerDiameter : undefined;
+  const headBearingID = headWasher ? headWasher.innerDiameter : undefined;
+
+  // Nut-side bearing (for surface pressure, stiffness, and torque when nut is turned)
+  const nutBearingOD = nutWasher ? nutWasher.outerDiameter : (nut ? nut.bearingDiameter : undefined);
+  const nutBearingID = nutWasher ? nutWasher.innerDiameter : (screw ? screw.holeDiameter : undefined);
+
+  // FIX #2: torque bearing depends on which side is being turned
+  const effectiveTurnedSide = assemblyType === 'through-nut' ? turnedSide : ('head' as const);
+  const torqueBearingOD = effectiveTurnedSide === 'nut' ? nutBearingOD : headBearingOD;
+  const torqueBearingID = effectiveTurnedSide === 'nut' ? nutBearingID : headBearingID;
 
   // ---------------------------------------------------------------------------
   // Assembly capacity: the weakest-link preload across all failure modes.
-  // The slider % is relative to this, so 100% = the assembly limit.
   // ---------------------------------------------------------------------------
   const assemblyCapacity = useMemo((): AssemblyLimit => {
     if (!screw) return { preload: 0, mode: 'none' };
@@ -121,7 +135,7 @@ export default function useCalculatorState() {
 
     // 2. Head surface pressure
     if (screw.hasHead && !screw.isCountersunk && clampedMaterial) {
-      const sp = calculateSurfacePressure(1, screw, clampedMaterial, effectiveBearingOD, effectiveBearingID);
+      const sp = calculateSurfacePressure(1, screw, clampedMaterial, headBearingOD, headBearingID);
       if (sp.bearingArea > 0) {
         limits.push({ preload: sp.limit * sp.bearingArea, mode: `Surface pressure (${clampedMaterial.name})` });
       }
@@ -147,26 +161,26 @@ export default function useCalculatorState() {
 
     return limits.reduce((min, cur) => cur.preload < min.preload ? cur : min);
   }, [screw, grade, clampedMaterial, tappedMaterial, assemblyType, nut, nutWasher,
-      effectiveBearingOD, effectiveBearingID, engagementLength, receiverPreset]);
+      headBearingOD, headBearingID, engagementLength, receiverPreset]);
 
   // Torque corresponding to 100% assembly capacity
   const fullCapacityTorque = screw
-    ? calculateTorque(assemblyCapacity.preload, screw, friction, effectiveBearingOD, effectiveBearingID) : 0;
+    ? calculateTorque(assemblyCapacity.preload, screw, friction, torqueBearingOD, torqueBearingID) : 0;
 
   let preload = 0;
   let torque = 0;
   if (screw) {
     if (inputMode === 'utilization' && utilization > 0) {
       torque = (utilization / 100) * fullCapacityTorque;
-      preload = calculatePreload(torque, screw, friction, effectiveBearingOD, effectiveBearingID);
+      preload = calculatePreload(torque, screw, friction, torqueBearingOD, torqueBearingID);
     } else if (inputMode === 'torque' && torqueInput > 0) {
       const m = useImperial ? torqueInput * NM_PER_LBFT : torqueInput;
       torque = m;
-      preload = calculatePreload(m, screw, friction, effectiveBearingOD, effectiveBearingID);
+      preload = calculatePreload(m, screw, friction, torqueBearingOD, torqueBearingID);
     } else if (inputMode === 'preload' && preloadInput > 0) {
       const m = useImperial ? preloadInput * N_PER_LBF : preloadInput;
       preload = m;
-      torque = calculateTorque(m, screw, friction, effectiveBearingOD, effectiveBearingID);
+      torque = calculateTorque(m, screw, friction, torqueBearingOD, torqueBearingID);
     }
   }
 
@@ -192,10 +206,15 @@ export default function useCalculatorState() {
     receiverPresetIdx, setReceiverPresetIdx, receiverPreset,
     axialLoadInput, setAxialLoadInput, shearLoadInput, setShearLoadInput,
     slipFriction, setSlipFriction,
+    turnedSide, setTurnedSide,         // FIX #2
+    interfaceCount, setInterfaceCount, // FIX #5
     engagementLength, setEngagementLength,
     clampLength, setClampLength, clampLengthSplit, setClampLengthSplit,
     preload, torque, axialServiceLoad, shearServiceLoad,
-    effectiveBearingOD, effectiveBearingID,
+    // Bearing geometry for Results (surface pressure, stiffness)
+    headBearingOD, headBearingID,
+    nutBearingOD, nutBearingID,
+    torqueBearingOD, torqueBearingID,
     assemblyCapacity,
   };
 }

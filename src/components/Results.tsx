@@ -31,8 +31,12 @@ interface Props {
   headWasher: WasherData | null;
   nutWasher: WasherData | null;
   nut: NutData | null;
-  bearingOD?: number;
-  bearingID?: number;
+  headBearingOD?: number;
+  headBearingID?: number;
+  nutBearingOD?: number;
+  nutBearingID?: number;
+  torqueBearingOD?: number;
+  torqueBearingID?: number;
   tighteningMethod: TighteningMethod;
   relaxationLossPct: number;
   settlementMicrons: number;
@@ -40,6 +44,7 @@ interface Props {
   axialServiceLoad: number;
   shearServiceLoad: number;
   slipFriction: number;
+  interfaceCount: number;
 }
 
 function safe(value: number): string {
@@ -97,8 +102,12 @@ export default function Results({
   headWasher,
   nutWasher,
   nut,
-  bearingOD,
-  bearingID,
+  headBearingOD,
+  headBearingID,
+  nutBearingOD,
+  nutBearingID,
+  torqueBearingOD,
+  torqueBearingID,
   tighteningMethod,
   relaxationLossPct,
   settlementMicrons,
@@ -106,6 +115,7 @@ export default function Results({
   axialServiceLoad,
   shearServiceLoad,
   slipFriction,
+  interfaceCount,
 }: Props) {
   if (!screw) {
     return (
@@ -148,29 +158,34 @@ export default function Results({
 
   const sp = useMemo<SurfacePressureResult | null>(() => {
     if (!screw.hasHead || screw.isCountersunk || !clampedMaterial) return null;
-    const headBearingOD = headWasher ? headWasher.outerDiameter : bearingOD;
-    const headBearingID = headWasher ? headWasher.innerDiameter : bearingID;
     return calculateSurfacePressure(preload, screw, clampedMaterial, headBearingOD, headBearingID);
-  }, [preload, screw, clampedMaterial, headWasher, bearingOD, bearingID]);
+  }, [preload, screw, clampedMaterial, headBearingOD, headBearingID]);
 
   const hasSurfacePressure = sp !== null;
 
   const spNut = useMemo<SurfacePressureResult | null>(() => {
     if (assemblyType !== 'through-nut' || !tappedMaterial || !nut) return null;
-    const nutBearingOD = nutWasher ? nutWasher.outerDiameter : nut.bearingDiameter;
-    const nutBearingID = nutWasher ? nutWasher.innerDiameter : screw.holeDiameter;
     return calculateSurfacePressure(preload, screw, tappedMaterial, nutBearingOD, nutBearingID);
-  }, [preload, screw, assemblyType, tappedMaterial, nut, nutWasher]);
+  }, [preload, screw, assemblyType, tappedMaterial, nut, nutBearingOD, nutBearingID]);
 
   const ts = useMemo<ThreadStrippingResult | null>(() => {
     if (assemblyType === 'through-nut' || !tappedMaterial || engagementLength <= 0) return null;
     return calculateThreadStripping(preload, screw, tappedMaterial, engagementLength, grade, receiverPreset);
   }, [preload, screw, assemblyType, tappedMaterial, engagementLength, grade, receiverPreset]);
 
+  // FIX #3: pass actual bearing geometry to joint stiffness
+  const headStiffnessOD = headBearingOD ?? screw.headDiameter;
+  const bottomStiffnessOD = nutBearingOD ?? screw.headDiameter;
+
   const js = useMemo<JointStiffnessResult | null>(() => {
     if (!clampedMaterial || clampLength <= 0) return null;
-    return calculateJointStiffness(preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit);
-  }, [preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit]);
+    return calculateJointStiffness(
+      preload, screw, clampedMaterial, clampLength, grade.name,
+      tappedMaterial, clampLengthSplit,
+      headStiffnessOD, bottomStiffnessOD,
+    );
+  }, [preload, screw, clampedMaterial, clampLength, grade.name, tappedMaterial, clampLengthSplit,
+      headStiffnessOD, bottomStiffnessOD]);
 
   const { torqueMin, torqueMax } = useMemo(() => {
     const scatter = friction.scatter ?? 0.20;
@@ -178,25 +193,27 @@ export default function Results({
       ...friction,
       muThread: friction.muThread * (1 - scatter),
       muHead: friction.muHead * (1 - scatter),
-    }, bearingOD, bearingID);
+    }, torqueBearingOD, torqueBearingID);
     const max = calculateTorque(preload, screw, {
       ...friction,
       muThread: friction.muThread * (1 + scatter),
       muHead: friction.muHead * (1 + scatter),
-    }, bearingOD, bearingID);
+    }, torqueBearingOD, torqueBearingID);
     return { torqueMin: min, torqueMax: max };
-  }, [preload, screw, friction, bearingOD, bearingID]);
+  }, [preload, screw, friction, torqueBearingOD, torqueBearingID]);
 
   const { totalScatter, servicePreload } = useMemo(() => {
     const scatter = combineScatter(friction.scatter, tighteningMethod.processScatter);
     const service = calculateServicePreload(
       torque, screw, friction, scatter,
       relaxationLossPct, settlementMicrons, js,
-      bearingOD, bearingID,
+      torqueBearingOD, torqueBearingID,
     );
     return { totalScatter: scatter, servicePreload: service };
-  }, [torque, screw, friction, tighteningMethod, relaxationLossPct, settlementMicrons, js, bearingOD, bearingID]);
+  }, [torque, screw, friction, tighteningMethod, relaxationLossPct, settlementMicrons, js,
+      torqueBearingOD, torqueBearingID]);
 
+  // FIX #5: pass interfaceCount to operating state
   const operatingState = useMemo(() => {
     if (!js) return null;
     return calculateOperatingState({
@@ -205,10 +222,11 @@ export default function Results({
       shearLoad: shearServiceLoad,
       loadFactor: js.loadFactor,
       interfaceFriction: slipFriction,
+      interfaceCount,
       screw,
       grade,
     });
-  }, [js, servicePreload, axialServiceLoad, shearServiceLoad, slipFriction, screw, grade]);
+  }, [js, servicePreload, axialServiceLoad, shearServiceLoad, slipFriction, interfaceCount, screw, grade]);
 
   const Nto = useImperial ? 0.2248 : 1;
   const Nmto = useImperial ? 0.7376 : 1;

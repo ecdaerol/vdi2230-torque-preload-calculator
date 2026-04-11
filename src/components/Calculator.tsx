@@ -120,6 +120,17 @@ export default function Calculator() {
                   ))}
                 </select>
               </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1" htmlFor="turned-side" style={{ color: 'var(--ink)' }}>Turned side</label>
+                <select id="turned-side" className={selectClass} style={fieldStyle} value={s.turnedSide} onChange={(e) => s.setTurnedSide(e.target.value as 'head' | 'nut')}>
+                  <option value="nut">Nut (most common)</option>
+                  <option value="head">Head</option>
+                </select>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                  Bearing friction torque depends on which side rotates during tightening.
+                </p>
+              </div>
             </>
           )}
 
@@ -162,6 +173,8 @@ export default function Calculator() {
             slipFriction={s.slipFriction}
             onSlipChange={s.setSlipFriction}
             useImperial={s.useImperial}
+            interfaceCount={s.interfaceCount}
+            onInterfaceCountChange={s.setInterfaceCount}
           />
 
           <div className={`grid gap-3 mb-4 ${s.assemblyType === 'through-nut' ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -274,8 +287,12 @@ export default function Calculator() {
           headWasher={s.headWasher}
           nutWasher={s.nutWasher}
           nut={s.nut}
-          bearingOD={s.effectiveBearingOD}
-          bearingID={s.effectiveBearingID}
+          headBearingOD={s.headBearingOD}
+          headBearingID={s.headBearingID}
+          nutBearingOD={s.nutBearingOD}
+          nutBearingID={s.nutBearingID}
+          torqueBearingOD={s.torqueBearingOD}
+          torqueBearingID={s.torqueBearingID}
           tighteningMethod={s.tighteningMethod}
           relaxationLossPct={s.relaxationLossPct}
           settlementMicrons={s.settlementMicrons}
@@ -283,6 +300,7 @@ export default function Calculator() {
           axialServiceLoad={s.axialServiceLoad}
           shearServiceLoad={s.shearServiceLoad}
           slipFriction={s.slipFriction}
+          interfaceCount={s.interfaceCount}
         />
         <JointDiagram
           preload={s.preload}

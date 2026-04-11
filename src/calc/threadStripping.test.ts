@@ -87,3 +87,24 @@ describe('calculateThreadStripping', () => {
     expect(blind.safetyFactor).toBeLessThan(direct.safetyFactor);
   });
 });
+
+  // FIX #1: minEngagementLength follows governing mode
+  it('minEngagementLength yields SF >= 1.5 when external stripping governs', () => {
+    const titanium = materialDatabase.find(m => m.name === 'Titanium Ti-6Al-4V')!;
+    const M3 = screwDatabase.find(s => s.size === 'M3' && s.standard === 'ISO 4017')!;
+    const result = calculateThreadStripping(1000, M3, titanium, 3, grade88, directTapped);
+
+    if (result.criticalMode === 'external') {
+      // Re-check at minEngagementLength — safety factor must be >= 1.5
+      const atMin = calculateThreadStripping(1000, M3, titanium, result.minEngagementLength, grade88, directTapped);
+      expect(atMin.safetyFactor).toBeGreaterThanOrEqual(1.49); // allow float rounding
+    }
+  });
+
+  it('minEngagementLength always yields SF >= 1.5 regardless of mode', () => {
+    // Internal mode
+    const result = calculateThreadStripping(5000, M6_pan, pa12sls, 6, grade88, directTapped);
+    expect(result.criticalMode).toBe('internal');
+    const atMin = calculateThreadStripping(5000, M6_pan, pa12sls, result.minEngagementLength, grade88, directTapped);
+    expect(atMin.safetyFactor).toBeGreaterThanOrEqual(1.49);
+  });

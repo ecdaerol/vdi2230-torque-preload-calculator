@@ -16,6 +16,7 @@ describe('calculateOperatingState', () => {
       interfaceFriction: 0.15,
       screw: M8,
       grade: grade88,
+      interfaceCount: 1,
     });
     expect(result.remainingClampForce).toBeCloseTo(12000 - 0.75 * 3000, 8);
     expect(result.additionalBoltLoad).toBeCloseTo(0.25 * 3000, 8);
@@ -30,6 +31,7 @@ describe('calculateOperatingState', () => {
       interfaceFriction: 0.15,
       screw: M8,
       grade: grade88,
+      interfaceCount: 1,
     });
     expect(result.isSeparated).toBe(true);
     expect(result.remainingClampForce).toBe(0);
@@ -44,6 +46,7 @@ describe('calculateOperatingState', () => {
       interfaceFriction: 0.2,
       screw: M8,
       grade: grade88,
+      interfaceCount: 1,
     });
     expect(result.availableSlipResistance).toBeCloseTo(2000, 8);
     expect(result.slipSafetyFactor).toBeCloseTo(2, 8);
@@ -59,8 +62,44 @@ describe('calculateOperatingState', () => {
       interfaceFriction: 0.2,
       screw: M8,
       grade: grade88,
+      interfaceCount: 1,
     });
     expect(result.shearStress).toBeGreaterThan(0);
     expect(result.shearSafetyFactor).toBeGreaterThan(1);
+  });
+
+  // FIX #4: threaded shear plane uses minor diameter
+  it('fully threaded screw uses minor diameter for shear, giving higher stress', () => {
+    const fullyThreaded = screwDatabase.find(
+      (s) => s.standard === 'ISO 14580' && s.size === 'M8' && !s.partiallyThreaded && !s.shoulderDiameter
+    )!;
+    const partiallyThreaded = screwDatabase.find(
+      (s) => s.size === 'M8' && s.partiallyThreaded
+    );
+    const base = { servicePreload: 10000, axialLoad: 0, shearLoad: 3000, loadFactor: 0.25, interfaceFriction: 0.2, grade: grade88, interfaceCount: 1 };
+    const ftResult = calculateOperatingState({ ...base, screw: fullyThreaded });
+    // Fully threaded should use d3 (minor), so shear stress is higher
+    expect(ftResult.shearArea).toBeLessThan(Math.PI * fullyThreaded.d * fullyThreaded.d / 4);
+    expect(ftResult.shearStress).toBeGreaterThan(0);
+    if (partiallyThreaded) {
+      const ptResult = calculateOperatingState({ ...base, screw: partiallyThreaded });
+      expect(ftResult.shearStress).toBeGreaterThan(ptResult.shearStress);
+    }
+  });
+
+  // FIX #5: interface count multiplies slip resistance
+  it('double-lap (interfaceCount=2) doubles slip resistance', () => {
+    const single = calculateOperatingState({
+      servicePreload: 10000, axialLoad: 0, shearLoad: 1000,
+      loadFactor: 0.25, interfaceFriction: 0.2,
+      screw: M8, grade: grade88, interfaceCount: 1,
+    });
+    const double = calculateOperatingState({
+      servicePreload: 10000, axialLoad: 0, shearLoad: 1000,
+      loadFactor: 0.25, interfaceFriction: 0.2,
+      screw: M8, grade: grade88, interfaceCount: 2,
+    });
+    expect(double.availableSlipResistance).toBeCloseTo(single.availableSlipResistance * 2, 8);
+    expect(double.slipSafetyFactor).toBeCloseTo(single.slipSafetyFactor * 2, 8);
   });
 });

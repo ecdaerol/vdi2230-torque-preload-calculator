@@ -13,12 +13,15 @@ interface Props {
   slipFriction: number;
   onSlipChange: (value: number) => void;
   useImperial: boolean;
+  interfaceCount: number;
+  onInterfaceCountChange: (value: number) => void;
 }
 
 export default function OperatingLoadsSection({
   assemblyType, receiverPresetIdx, onReceiverChange, receiverPreset,
   axialLoadInput, onAxialChange, shearLoadInput, onShearChange,
   slipFriction, onSlipChange, useImperial,
+  interfaceCount, onInterfaceCountChange,
 }: Props) {
   const selectClass = 'w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
   const inputClass = 'w-full px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 bg-[var(--panel)] border rounded-[10px]';
@@ -80,6 +83,20 @@ export default function OperatingLoadsSection({
           />
           <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
             Used for slip resistance under transverse load. This is separate from tightening friction.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="interface-count" style={{ color: 'var(--ink)' }}>Slip interfaces</label>
+          <input
+            id="interface-count"
+            type="number" step="1" min="1" max="10"
+            className={inputClass} style={fieldStyle}
+            value={interfaceCount}
+            onChange={(e) => onInterfaceCountChange(Math.max(1, parseInt(e.target.value) || 1))}
+          />
+          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+            Number of friction interfaces (1 = single lap, 2 = double lap).
           </p>
         </div>
       </div>

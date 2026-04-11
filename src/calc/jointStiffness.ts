@@ -42,6 +42,7 @@ function coneStiffness(
   return Ec * dw * Math.PI / 2;
 }
 
+// FIX #3: accept actual bearing geometry instead of hardcoding screw.headDiameter
 export function calculateJointStiffness(
   preload: number,
   screw: ScrewData,
@@ -49,13 +50,17 @@ export function calculateJointStiffness(
   clampLength: number,
   gradeName: string,
   secondMaterial?: MaterialData | null,
-  clampLengthSplit?: number   // thickness of first layer (material); remainder is secondMaterial
+  clampLengthSplit?: number,
+  headBearingOD?: number,   // washer OD or head diameter override
+  bottomBearingOD?: number  // nut bearing OD or nut washer OD override
 ): JointStiffnessResult {
   // Bolt stiffness: k_b = E_bolt × A_s / L_clamp
   const kBolt = (getBoltEModulus(gradeName) * screw.stressArea) / clampLength;
 
-  const dw = screw.headDiameter; // bearing diameter
-  const dh = screw.holeDiameter; // hole diameter
+  // FIX #3: use actual bearing geometry if provided, fall back to screw dimensions
+  const dwTop = headBearingOD ?? screw.headDiameter;
+  const dwBot = bottomBearingOD ?? screw.headDiameter;
+  const dh = screw.holeDiameter;
 
   let kClamp: number;
 
@@ -66,19 +71,19 @@ export function calculateJointStiffness(
     const Ec2 = secondMaterial.elasticModulus * 1000;
 
     if (L1 <= 0) {
-      kClamp = coneStiffness(Ec2, dw, dh, clampLength);
+      kClamp = coneStiffness(Ec2, dwBot, dh, clampLength);
     } else if (L2 <= 0) {
-      kClamp = coneStiffness(Ec1, dw, dh, clampLength);
+      kClamp = coneStiffness(Ec1, dwTop, dh, clampLength);
     } else {
-      // Multi-layer: two materials in series — combine compliance
-      const k1 = coneStiffness(Ec1, dw, dh, L1);
-      const k2 = coneStiffness(Ec2, dw, dh, L2);
+      // Multi-layer: top cone uses head-side bearing, bottom uses nut-side
+      const k1 = coneStiffness(Ec1, dwTop, dh, L1);
+      const k2 = coneStiffness(Ec2, dwBot, dh, L2);
       // Series spring: 1/k = 1/k1 + 1/k2
       kClamp = (k1 * k2) / (k1 + k2);
     }
   } else {
     const Ec = material.elasticModulus * 1000; // GPa → MPa
-    kClamp = coneStiffness(Ec, dw, dh, clampLength);
+    kClamp = coneStiffness(Ec, dwTop, dh, clampLength);
   }
 
   // Enforce physical invariant: stiffness must be at least 1 N/mm

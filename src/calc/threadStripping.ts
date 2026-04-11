@@ -9,7 +9,7 @@ export interface ThreadStrippingResult {
   criticalMode: 'internal' | 'external';
   strippingForce: number;           // N — min of internal/external
   safetyFactor: number;
-  minEngagementLength: number;      // mm (for SF = 1.5)
+  minEngagementLength: number;      // mm (for SF = 1.5, based on governing mode)
   shearArea: number;                // mm² (internal shear area)
   engagementFactor: number;         // C_int
   receiverFactor: number;
@@ -57,9 +57,22 @@ export function calculateThreadStripping(
 
   const safetyFactor = preload > 0 ? strippingForce / preload : Infinity;
 
-  const minEngagementLength = (1.5 * preload) / (
+  // FIX #1: compute minEngagementLength based on the GOVERNING mode
+  const minEngagementInternal = (1.5 * preload) / (
     Math.PI * d1 * Math.max(C_int, 0.01) * material.shearStrength * receiver.internalCapacityFactor
   );
+
+  let minEngagementExternal = 0;
+  if (grade) {
+    const Rm = grade.tensileStrength;
+    minEngagementExternal = (1.5 * preload) / (
+      Math.PI * d2 * Math.max(C_ext, 0.01) * 0.6 * Rm
+    );
+  }
+
+  const minEngagementLength = criticalMode === 'external' && grade
+    ? Math.max(minEngagementInternal, minEngagementExternal)
+    : minEngagementInternal;
 
   let status: 'ok' | 'warning' | 'danger' = 'ok';
   if (safetyFactor < 1.0) status = 'danger';

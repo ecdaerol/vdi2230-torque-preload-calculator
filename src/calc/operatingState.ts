@@ -7,6 +7,7 @@ export interface OperatingStateInput {
   shearLoad: number;
   loadFactor: number;
   interfaceFriction: number;
+  interfaceCount: number;       // FIX #5: number of slip interfaces (default 1)
   screw: ScrewData;
   grade: BoltGrade;
 }
@@ -36,6 +37,7 @@ export function calculateOperatingState({
   shearLoad,
   loadFactor,
   interfaceFriction,
+  interfaceCount,
   screw,
   grade,
 }: OperatingStateInput): OperatingStateResult {
@@ -52,11 +54,25 @@ export function calculateOperatingState({
   const clampForceLoss = servicePreload - remainingClampForce;
   const boltForceUnderAxialLoad = servicePreload + additionalBoltLoad;
 
-  const availableSlipResistance = Math.max(0, interfaceFriction) * remainingClampForce;
+  // FIX #5: slip resistance scales with number of friction interfaces
+  const nInterfaces = Math.max(1, interfaceCount);
+  const availableSlipResistance = Math.max(0, interfaceFriction) * remainingClampForce * nInterfaces;
   const slipSafetyFactor = shearLoad > 0 ? availableSlipResistance / shearLoad : Number.POSITIVE_INFINITY;
   const willSlip = shearLoad > 0 && availableSlipResistance < shearLoad;
 
-  const effectiveDiameter = screw.shoulderDiameter ?? screw.d;
+  // FIX #4: use minor diameter for threaded shear planes (conservative)
+  // Shoulder bolts use shoulder diameter. Partially threaded bolts with explicit
+  // shank can use major diameter. Fully threaded bolts must use minor diameter.
+  let effectiveDiameter: number;
+  if (screw.shoulderDiameter) {
+    effectiveDiameter = screw.shoulderDiameter;
+  } else if (screw.partiallyThreaded) {
+    // Shear plane likely on unthreaded shank — use major diameter
+    effectiveDiameter = screw.d;
+  } else {
+    // Fully threaded — shear plane is through threads, use minor diameter d3
+    effectiveDiameter = screw.d3;
+  }
   const shearArea = Math.PI * effectiveDiameter * effectiveDiameter / 4;
   const shearStress = shearLoad > 0 ? shearLoad / shearArea : 0;
   const shearAllowable = 0.58 * grade.Rp02;
